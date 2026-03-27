@@ -12,6 +12,7 @@ HULiGENNEM is a Danish public-service children's and youth audio platform with 6
 - **Media Browser** — Browse all series, seasons, and episodes with thumbnails
 - **Live Radio** — Listen to the live HULiGENNEM radio stream (HLS)
 - **Direct Playback** — Episodes play as direct MP3 on any media player entity
+- **Play statistics** — Every play is routed through HULiGENNEM's streaming infrastructure, so it counts in their official listener statistics
 - **Services** — Search series, get episodes, and check live status via HA services
 - **Automations** — Play specific episodes or live radio on any speaker via automations
 
@@ -165,6 +166,8 @@ response_variable: live
 ```
 
 ### Automation Examples
+
+> Every play triggered via automation (or any other method) routes through HULiGENNEM's streaming infrastructure and counts in their official listener statistics — so playing from Home Assistant directly supports the platform.
 
 #### Play a morning podcast for the kids
 
