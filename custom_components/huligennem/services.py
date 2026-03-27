@@ -108,12 +108,15 @@ async def async_handle_get_episodes(call: ServiceCall) -> ServiceResponse:
     for season in playlist.get("data", {}).get("seasons", []):
         for ep in season.get("episodes", []):
             media = ep.get("media", {})
+            episode_id = ep.get("id")
+            # Prefer Spreaker URL (counts in HULiGENNEM's stats), fall back to backup CDN URL
+            media_url = await api.async_get_episode_url(serie_id, episode_id) or media.get("url")
             episodes.append(
                 {
-                    "id": ep.get("id"),
+                    "id": episode_id,
                     "title": ep.get("title"),
                     "season": season.get("title"),
-                    "media_url": media.get("url"),
+                    "media_url": media_url,
                     "duration_seconds": media.get("duration_in_seconds"),
                 }
             )

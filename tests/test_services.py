@@ -25,6 +25,9 @@ def api_mock():
     api = AsyncMock()
     api.async_get_series = AsyncMock(return_value=SAMPLE_SERIES_PAGE_1["props"]["series"]["data"])
     api.async_get_playlist = AsyncMock(return_value=SAMPLE_PLAYLIST)
+    api.async_get_episode_url = AsyncMock(
+        return_value="https://api.spreaker.com/v2/episodes/999001/play.mp3"
+    )
     api.async_get_live = AsyncMock(
         return_value={
             "title": "Live Show Now",
@@ -110,7 +113,7 @@ class TestGetEpisodes:
         assert len(result["episodes"]) == 3
         assert result["episodes"][0]["title"] == "Episode 1"
         assert result["episodes"][0]["media_url"] == (
-            "https://huligennem-production.imgix.net/ep1.mp3"
+            "https://api.spreaker.com/v2/episodes/999001/play.mp3"
         )
         assert result["episodes"][0]["duration_seconds"] == 600
         assert result["episodes"][0]["season"] == "Sæson 1"

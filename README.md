@@ -121,7 +121,7 @@ The response contains all episodes with their IDs:
       "id": 729,
       "title": "Far togene Elliot til at sige \"WAUW\"?",
       "season": "\"WAUW\" med Frederik",
-      "media_url": "https://huligennem-production.imgix.net/audio/.../episode.mp3",
+      "media_url": "https://api.spreaker.com/v2/episodes/12345678/play.mp3",
       "duration_seconds": 3918
     }
   ]
