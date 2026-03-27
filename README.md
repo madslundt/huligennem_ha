@@ -32,6 +32,10 @@ HULiGENNEM is a Danish public-service children's and youth audio platform with 6
 
 ## Setup
 
+[![Add integration to my Home Assistant](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=huligennem)
+
+Or manually:
+
 1. Go to **Settings** → **Devices & Services** → **Add Integration**
 2. Search for **HULiGENNEM**
 3. Click **Submit** to confirm
