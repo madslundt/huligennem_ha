@@ -8,12 +8,15 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from custom_components.huligennem.api import HuligennemAPI, HuligennemApiError
-from custom_components.huligennem.const import SERIES_CACHE_TTL
+from custom_components.huligennem.const import SERIES_CACHE_TTL, USER_AGENT
 
 from .conftest import (
     SAMPLE_LIVE_WITH_STREAM,
     SAMPLE_LIVE_WITHOUT_STREAM,
     SAMPLE_PLAYLIST,
+    SAMPLE_SERIES_DETAIL_EPISODIC,
+    SAMPLE_SERIES_DETAIL_NO_HOSTED_URL,
+    SAMPLE_SERIES_DETAIL_SEASONAL,
     SAMPLE_SERIES_PAGE_1,
     SAMPLE_SERIES_PAGE_2,
     SAMPLE_SINGLE_PAGE_SERIES,
@@ -256,3 +259,132 @@ class TestAsyncGetLive:
 
         assert live1 is live2
         assert session.get.call_count == 1
+
+
+class TestAsyncGetEpisodeUrl:
+    """Tests for async_get_episode_url."""
+
+    def _make_session(self, *html_responses):
+        """Return a mock session that serves HTML responses in order."""
+        session = MagicMock()
+        responses = [_mock_response(text=html) for html in html_responses]
+        idx = 0
+
+        def side_effect(url, **kwargs):
+            nonlocal idx
+            resp = responses[idx % len(responses)]
+            idx += 1
+            return _make_ctx(resp)
+
+        session.get = MagicMock(side_effect=side_effect)
+        return session
+
+    @pytest.mark.asyncio
+    async def test_episodic_series_returns_hosted_url(self):
+        """Test that episodic series returns the Spreaker hosted_url."""
+        series_page = make_inertia_html(SAMPLE_SINGLE_PAGE_SERIES)
+        detail_page = make_inertia_html(SAMPLE_SERIES_DETAIL_EPISODIC)
+        session = self._make_session(series_page, detail_page)
+
+        api = HuligennemAPI(session)
+        url = await api.async_get_episode_url(1, 100)
+
+        assert url == "https://api.spreaker.com/v2/episodes/999001/play.mp3"
+
+    @pytest.mark.asyncio
+    async def test_seasonal_series_returns_hosted_url(self):
+        """Test that seasonal series (nested episodes) returns the Spreaker hosted_url."""
+        series_page = make_inertia_html(SAMPLE_SINGLE_PAGE_SERIES)
+        detail_page = make_inertia_html(SAMPLE_SERIES_DETAIL_SEASONAL)
+        session = self._make_session(series_page, detail_page)
+
+        api = HuligennemAPI(session)
+        url = await api.async_get_episode_url(1, 100)
+
+        assert url == "https://api.spreaker.com/v2/episodes/999001/play.mp3"
+
+    @pytest.mark.asyncio
+    async def test_falls_back_to_media_url_when_hosted_url_null(self):
+        """Test fallback to media_url when hosted_url is null."""
+        series_page = make_inertia_html(SAMPLE_SINGLE_PAGE_SERIES)
+        detail_page = make_inertia_html(SAMPLE_SERIES_DETAIL_NO_HOSTED_URL)
+        session = self._make_session(series_page, detail_page)
+
+        api = HuligennemAPI(session)
+        url = await api.async_get_episode_url(1, 100)
+
+        assert url == "https://huligennem-production.imgix.net/ep1.mp3"
+
+    @pytest.mark.asyncio
+    async def test_returns_none_for_unknown_episode(self):
+        """Test returns None when episode ID is not in the series."""
+        series_page = make_inertia_html(SAMPLE_SINGLE_PAGE_SERIES)
+        detail_page = make_inertia_html(SAMPLE_SERIES_DETAIL_EPISODIC)
+        session = self._make_session(series_page, detail_page)
+
+        api = HuligennemAPI(session)
+        url = await api.async_get_episode_url(1, 999)
+
+        assert url is None
+
+    @pytest.mark.asyncio
+    async def test_returns_none_for_unknown_serie(self):
+        """Test returns None when serie ID is not in the series list."""
+        series_page = make_inertia_html(SAMPLE_SINGLE_PAGE_SERIES)
+        session = MagicMock()
+        resp = _mock_response(text=series_page)
+        session.get = MagicMock(return_value=_make_ctx(resp))
+
+        api = HuligennemAPI(session)
+        url = await api.async_get_episode_url(999, 100)
+
+        assert url is None
+
+    @pytest.mark.asyncio
+    async def test_caches_episode_url_map(self):
+        """Test that the episode URL map is cached per-series."""
+        series_page = make_inertia_html(SAMPLE_SINGLE_PAGE_SERIES)
+        detail_page = make_inertia_html(SAMPLE_SERIES_DETAIL_EPISODIC)
+        session = self._make_session(series_page, detail_page)
+
+        api = HuligennemAPI(session)
+        url1 = await api.async_get_episode_url(1, 100)
+        url2 = await api.async_get_episode_url(1, 101)
+
+        assert url1 == "https://api.spreaker.com/v2/episodes/999001/play.mp3"
+        assert url2 == "https://api.spreaker.com/v2/episodes/999002/play.mp3"
+        # Series page fetched once + detail page fetched once = 2 total calls
+        assert session.get.call_count == 2
+
+
+class TestUserAgentHeader:
+    """Tests that all requests include the custom User-Agent header."""
+
+    @pytest.mark.asyncio
+    async def test_fetch_sends_user_agent(self):
+        """Test that _fetch passes the User-Agent header."""
+        session = MagicMock()
+        resp = _mock_response(text="<div></div>")
+        session.get = MagicMock(return_value=_make_ctx(resp))
+
+        api = HuligennemAPI(session)
+        try:
+            await api._fetch("https://example.com")
+        except Exception:
+            pass
+
+        _, kwargs = session.get.call_args
+        assert kwargs.get("headers", {}).get("User-Agent") == USER_AGENT
+
+    @pytest.mark.asyncio
+    async def test_fetch_json_sends_user_agent(self):
+        """Test that _fetch_json passes the User-Agent header."""
+        session = MagicMock()
+        resp = _mock_response(json_data={"ok": True})
+        session.get = MagicMock(return_value=_make_ctx(resp))
+
+        api = HuligennemAPI(session)
+        await api._fetch_json("https://example.com")
+
+        _, kwargs = session.get.call_args
+        assert kwargs.get("headers", {}).get("User-Agent") == USER_AGENT

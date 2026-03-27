@@ -26,6 +26,7 @@ def api_mock():
     api = AsyncMock()
     api.async_get_series = AsyncMock(return_value=SAMPLE_SERIES_PAGE_1["props"]["series"]["data"])
     api.async_get_playlist = AsyncMock(return_value=SAMPLE_PLAYLIST)
+    api.async_get_episode_url = AsyncMock(return_value=None)
     api.async_get_live = AsyncMock(
         return_value={
             "title": "Live Show",
@@ -135,8 +136,23 @@ class TestResolveMedia:
     """Tests for resolve_media."""
 
     @pytest.mark.asyncio
-    async def test_resolve_episode(self, media_source: HuligennemMediaSource):
-        """Test resolving an episode returns MP3 URL."""
+    async def test_resolve_episode_uses_spreaker_url(
+        self, media_source: HuligennemMediaSource, api_mock
+    ):
+        """Test that episode resolution uses the Spreaker hosted URL."""
+        api_mock.async_get_episode_url = AsyncMock(
+            return_value="https://api.spreaker.com/v2/episodes/999001/play.mp3"
+        )
+        result = await media_source.async_resolve_media(_item("episode/100/serie/1"))
+
+        assert result.url == "https://api.spreaker.com/v2/episodes/999001/play.mp3"
+        assert result.mime_type == "audio/mpeg"
+
+    @pytest.mark.asyncio
+    async def test_resolve_episode_fallback_to_playlist(
+        self, media_source: HuligennemMediaSource
+    ):
+        """Test fallback to playlist CDN URL when no Spreaker URL available."""
         result = await media_source.async_resolve_media(_item("episode/100/serie/1"))
 
         assert result.url == "https://huligennem-production.imgix.net/ep1.mp3"

@@ -28,12 +28,25 @@ from .const import (
     REQUEST_TIMEOUT_SECONDS,
     SERIES_CACHE_TTL,
     SERIES_URL,
+    USER_AGENT,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 DATA_PAGE_PATTERN = re.compile(r'data-page="([^"]+)"')
 _REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT_SECONDS)
+_HEADERS = {"User-Agent": USER_AGENT}
+
+
+def _collect_episode_url(url_map: dict[int, str], episode: dict[str, Any]) -> None:
+    """Extract and store the best playback URL for an episode dict."""
+    ep_id = episode.get("id")
+    if not ep_id:
+        return
+    audio = episode.get("audio") or {}
+    url = audio.get("hosted_url") or audio.get("media_url")
+    if url:
+        url_map[ep_id] = url
 
 
 class HuligennemApiError(Exception):
@@ -55,6 +68,7 @@ class HuligennemAPI:
         self._series_cache: list[dict[str, Any]] | None = None
         self._series_cache_time: float = 0
         self._playlist_cache: dict[int, tuple[float, dict[str, Any]]] = {}
+        self._episode_url_cache: dict[int, tuple[float, dict[int, str]]] = {}
         self._live_cache: dict[str, Any] | None = None
         self._live_cache_time: float = 0
         self._series_lock = asyncio.Lock()
@@ -90,7 +104,7 @@ class HuligennemAPI:
 
         """
         try:
-            async with self._session.get(url, timeout=_REQUEST_TIMEOUT) as resp:
+            async with self._session.get(url, timeout=_REQUEST_TIMEOUT, headers=_HEADERS) as resp:
                 if resp.status != 200:
                     raise HuligennemApiError(f"HTTP {resp.status} from {url}")
                 return await resp.text()
@@ -105,7 +119,7 @@ class HuligennemAPI:
 
         """
         try:
-            async with self._session.get(url, timeout=_REQUEST_TIMEOUT) as resp:
+            async with self._session.get(url, timeout=_REQUEST_TIMEOUT, headers=_HEADERS) as resp:
                 if resp.status != 200:
                     raise HuligennemApiError(f"HTTP {resp.status} from {url}")
                 return await resp.json()
@@ -235,3 +249,55 @@ class HuligennemAPI:
             self._live_cache = result
             self._live_cache_time = time.monotonic()
             return result
+
+    async def async_get_episode_url(self, serie_id: int, episode_id: int) -> str | None:
+        """Return the best playback URL for an episode.
+
+        Fetches the series detail page (``/serier/{slug}``) which exposes both a
+        Spreaker-hosted URL (``audio.hosted_url``) that registers plays in
+        HULiGENNEM's statistics, and a backup CDN URL (``audio.media_url``).
+        Prefers ``hosted_url`` when available.
+
+        Handles both episodic series (flat episode list in ``props.data``) and
+        seasonal series (season objects with nested ``episodes`` in ``props.data``).
+
+        Results are cached per-series for ``SERIES_CACHE_TTL`` seconds.
+
+        Args:
+            serie_id: Numeric series identifier.
+            episode_id: Numeric episode identifier.
+
+        Returns:
+            Playback URL string, or ``None`` if not found.
+
+        """
+        now = time.monotonic()
+        if serie_id in self._episode_url_cache:
+            cache_time, url_map = self._episode_url_cache[serie_id]
+            if (now - cache_time) < SERIES_CACHE_TTL:
+                return url_map.get(episode_id)
+
+        series = await self.async_get_series()
+        slug = next((s.get("slug") for s in series if s.get("id") == serie_id), None)
+        if not slug:
+            return None
+
+        try:
+            serie_html = await self._fetch(f"{SERIES_URL}/{slug}")
+            page_data = self._parse_inertia_page(serie_html)
+        except HuligennemApiError as err:
+            _LOGGER.debug("Could not fetch series detail page for %s: %s", slug, err)
+            return None
+
+        url_map: dict[int, str] = {}
+        for item in page_data.get("props", {}).get("data", []):
+            if "audio" in item:
+                # Episodic series: item is a direct episode
+                _collect_episode_url(url_map, item)
+            elif "episodes" in item:
+                # Seasonal series: item is a season containing episodes
+                for ep in item.get("episodes", []):
+                    _collect_episode_url(url_map, ep)
+
+        self._episode_url_cache[serie_id] = (now, url_map)
+        return url_map.get(episode_id)

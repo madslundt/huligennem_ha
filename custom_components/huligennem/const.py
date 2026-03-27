@@ -30,3 +30,6 @@ MAX_PLAYLIST_CACHE_SIZE = 100
 
 REQUEST_TIMEOUT_SECONDS = 10
 """HTTP request timeout in seconds to prevent blocking the HA event loop."""
+
+USER_AGENT = "HomeAssistant"
+"""User-Agent header sent with all HTTP requests for play tracking."""

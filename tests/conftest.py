@@ -166,6 +166,70 @@ SAMPLE_LIVE_WITHOUT_STREAM = {
 }
 
 
+SAMPLE_SERIES_DETAIL_EPISODIC = {
+    "props": {
+        "data": [
+            {
+                "id": 100,
+                "title": "Episode 1",
+                "audio": {
+                    "hosted_url": "https://api.spreaker.com/v2/episodes/999001/play.mp3",
+                    "media_url": "https://huligennem-production.imgix.net/ep1.mp3",
+                    "length_in_seconds": 600,
+                },
+            },
+            {
+                "id": 101,
+                "title": "Episode 2",
+                "audio": {
+                    "hosted_url": "https://api.spreaker.com/v2/episodes/999002/play.mp3",
+                    "media_url": "https://huligennem-production.imgix.net/ep2.mp3",
+                    "length_in_seconds": 900,
+                },
+            },
+        ]
+    }
+}
+
+SAMPLE_SERIES_DETAIL_SEASONAL = {
+    "props": {
+        "data": [
+            {
+                "id": 10,
+                "title": "Sæson 1",
+                "episodes": [
+                    {
+                        "id": 100,
+                        "title": "Episode 1",
+                        "audio": {
+                            "hosted_url": "https://api.spreaker.com/v2/episodes/999001/play.mp3",
+                            "media_url": "https://huligennem-production.imgix.net/ep1.mp3",
+                            "length_in_seconds": 600,
+                        },
+                    }
+                ],
+            }
+        ]
+    }
+}
+
+SAMPLE_SERIES_DETAIL_NO_HOSTED_URL = {
+    "props": {
+        "data": [
+            {
+                "id": 100,
+                "title": "Episode 1",
+                "audio": {
+                    "hosted_url": None,
+                    "media_url": "https://huligennem-production.imgix.net/ep1.mp3",
+                    "length_in_seconds": 600,
+                },
+            }
+        ]
+    }
+}
+
+
 def make_inertia_html(data: dict) -> str:
     """Create a fake Inertia.js HTML page with data-page attribute."""
     escaped = json.dumps(data).replace('"', "&quot;").replace("<", "&lt;")

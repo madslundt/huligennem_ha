@@ -86,6 +86,9 @@ class HuligennemMediaSource(MediaSource):
         """Resolve an episode identifier to its direct MP3 URL.
 
         Expected format: ``episode/{episode_id}/serie/{serie_id}``
+
+        Prefers the Spreaker-hosted URL (registers plays in HULiGENNEM's
+        statistics) and falls back to the backup CDN URL from the playlist API.
         """
         parts = identifier.split("/")
         if len(parts) != 4:
@@ -98,8 +101,14 @@ class HuligennemMediaSource(MediaSource):
             raise Unresolvable(f"Invalid episode identifier: {identifier}") from err
 
         api = get_api(self.hass)
-        playlist = await api.async_get_playlist(serie_id)
 
+        # Prefer the Spreaker-hosted URL — it counts as a play in HULiGENNEM's stats.
+        url = await api.async_get_episode_url(serie_id, episode_id)
+        if url:
+            return PlayMedia(url, "audio/mpeg")
+
+        # Fall back to the playlist API (backup CDN URL).
+        playlist = await api.async_get_playlist(serie_id)
         for season in playlist.get("data", {}).get("seasons", []):
             for episode in season.get("episodes", []):
                 if episode.get("id") == episode_id:
