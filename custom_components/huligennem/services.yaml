@@ -1,0 +1,29 @@
+search_series:
+  name: Search Series
+  description: Search for series by title. Returns all series if no query is provided.
+  fields:
+    query:
+      name: Query
+      description: Search term to filter series by title (case-insensitive substring match).
+      required: false
+      example: "ultra"
+      selector:
+        text:
+
+get_episodes:
+  name: Get Episodes
+  description: Get all episodes for a specific series.
+  fields:
+    serie_id:
+      name: Series ID
+      description: The numeric ID of the series.
+      required: true
+      example: 48
+      selector:
+        number:
+          min: 1
+          mode: box
+
+get_live:
+  name: Get Live
+  description: Get current live stream information.
