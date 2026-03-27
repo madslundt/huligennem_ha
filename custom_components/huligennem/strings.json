@@ -1,0 +1,39 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "HULiGENNEM",
+        "description": "Add the HULiGENNEM integration to browse and play podcasts from dererhuligennem.dk."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]"
+    }
+  },
+  "services": {
+    "search_series": {
+      "name": "Search Series",
+      "description": "Search for series by title.",
+      "fields": {
+        "query": {
+          "name": "Query",
+          "description": "Search term to filter series by title."
+        }
+      }
+    },
+    "get_episodes": {
+      "name": "Get Episodes",
+      "description": "Get all episodes for a specific series.",
+      "fields": {
+        "serie_id": {
+          "name": "Series ID",
+          "description": "The numeric ID of the series."
+        }
+      }
+    },
+    "get_live": {
+      "name": "Get Live",
+      "description": "Get current live stream information."
+    }
+  }
+}
