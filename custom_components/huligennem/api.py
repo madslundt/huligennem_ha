@@ -125,10 +125,7 @@ class HuligennemAPI:
 
         """
         now = time.monotonic()
-        if (
-            self._series_cache is not None
-            and (now - self._series_cache_time) < SERIES_CACHE_TTL
-        ):
+        if self._series_cache is not None and (now - self._series_cache_time) < SERIES_CACHE_TTL:
             return self._series_cache
 
         async with self._series_lock:
@@ -146,24 +143,15 @@ class HuligennemAPI:
             series_data: list[dict[str, Any]] = list(
                 first_page.get("props", {}).get("series", {}).get("data", [])
             )
-            last_page = (
-                first_page.get("props", {}).get("series", {}).get("last_page", 1)
-            )
+            last_page = first_page.get("props", {}).get("series", {}).get("last_page", 1)
 
             if last_page > 1:
                 pages_html = await asyncio.gather(
-                    *(
-                        self._fetch(f"{SERIES_URL}?page={page}")
-                        for page in range(2, last_page + 1)
-                    )
+                    *(self._fetch(f"{SERIES_URL}?page={page}") for page in range(2, last_page + 1))
                 )
                 for page_html in pages_html:
                     page_data = self._parse_inertia_page(page_html)
-                    series_data.extend(
-                        page_data.get("props", {})
-                        .get("series", {})
-                        .get("data", [])
-                    )
+                    series_data.extend(page_data.get("props", {}).get("series", {}).get("data", []))
 
             self._series_cache = series_data
             self._series_cache_time = time.monotonic()
@@ -193,19 +181,13 @@ class HuligennemAPI:
         data = await self._fetch_json(f"{PLAYLIST_URL}/{serie_id}")
 
         # Evict expired entries to prevent unbounded growth
-        expired = [
-            k
-            for k, (t, _) in self._playlist_cache.items()
-            if (now - t) >= SERIES_CACHE_TTL
-        ]
+        expired = [k for k, (t, _) in self._playlist_cache.items() if (now - t) >= SERIES_CACHE_TTL]
         for k in expired:
             del self._playlist_cache[k]
 
         # Cap cache size as a safety net
         if len(self._playlist_cache) >= MAX_PLAYLIST_CACHE_SIZE:
-            oldest_key = min(
-                self._playlist_cache, key=lambda k: self._playlist_cache[k][0]
-            )
+            oldest_key = min(self._playlist_cache, key=lambda k: self._playlist_cache[k][0])
             del self._playlist_cache[oldest_key]
 
         self._playlist_cache[serie_id] = (now, data)
@@ -224,19 +206,13 @@ class HuligennemAPI:
 
         """
         now = time.monotonic()
-        if (
-            self._live_cache is not None
-            and (now - self._live_cache_time) < LIVE_CACHE_TTL
-        ):
+        if self._live_cache is not None and (now - self._live_cache_time) < LIVE_CACHE_TTL:
             return self._live_cache
 
         async with self._live_lock:
             # Re-check cache under lock
             now = time.monotonic()
-            if (
-                self._live_cache is not None
-                and (now - self._live_cache_time) < LIVE_CACHE_TTL
-            ):
+            if self._live_cache is not None and (now - self._live_cache_time) < LIVE_CACHE_TTL:
                 return self._live_cache
 
             live_html = await self._fetch(LIVE_URL)
@@ -244,9 +220,7 @@ class HuligennemAPI:
             props = page_data.get("props", {})
 
             countdown = props.get("countdown")
-            live_show = (
-                countdown.get("live_show") if isinstance(countdown, dict) else None
-            )
+            live_show = countdown.get("live_show") if isinstance(countdown, dict) else None
 
             if live_show and live_show.get("stream_url"):
                 result: dict[str, Any] = {

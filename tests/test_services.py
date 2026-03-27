@@ -23,9 +23,7 @@ from .conftest import (
 def api_mock():
     """Create a mock API."""
     api = AsyncMock()
-    api.async_get_series = AsyncMock(
-        return_value=SAMPLE_SERIES_PAGE_1["props"]["series"]["data"]
-    )
+    api.async_get_series = AsyncMock(return_value=SAMPLE_SERIES_PAGE_1["props"]["series"]["data"])
     api.async_get_playlist = AsyncMock(return_value=SAMPLE_PLAYLIST)
     api.async_get_live = AsyncMock(
         return_value={

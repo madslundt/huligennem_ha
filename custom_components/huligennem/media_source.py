@@ -95,9 +95,7 @@ class HuligennemMediaSource(MediaSource):
             episode_id = int(parts[1])
             serie_id = int(parts[3])
         except ValueError as err:
-            raise Unresolvable(
-                f"Invalid episode identifier: {identifier}"
-            ) from err
+            raise Unresolvable(f"Invalid episode identifier: {identifier}") from err
 
         api = get_api(self.hass)
         playlist = await api.async_get_playlist(serie_id)
@@ -112,9 +110,7 @@ class HuligennemMediaSource(MediaSource):
 
         raise Unresolvable(f"Episode {episode_id} not found in series {serie_id}")
 
-    async def async_browse_media(
-        self, item: MediaSourceItem
-    ) -> BrowseMediaSource:
+    async def async_browse_media(self, item: MediaSourceItem) -> BrowseMediaSource:
         """Browse the media hierarchy.
 
         Routes based on the identifier prefix to the appropriate
@@ -257,9 +253,7 @@ class HuligennemMediaSource(MediaSource):
             children=children,
         )
 
-    def _episode_to_browse(
-        self, episode: dict, serie_id: int
-    ) -> BrowseMediaSource:
+    def _episode_to_browse(self, episode: dict, serie_id: int) -> BrowseMediaSource:
         """Convert an episode dict to a browsable media source item."""
         media = episode.get("media", {})
         duration = media.get("duration_in_seconds")

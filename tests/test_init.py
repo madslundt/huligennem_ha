@@ -19,12 +19,8 @@ async def test_async_setup_entry():
     entry.runtime_data = None
 
     with (
-        patch(
-            "custom_components.huligennem.async_get_clientsession"
-        ),
-        patch(
-            "custom_components.huligennem.HuligennemAPI"
-        ) as mock_api_class,
+        patch("custom_components.huligennem.async_get_clientsession"),
+        patch("custom_components.huligennem.HuligennemAPI") as mock_api_class,
         patch(
             "custom_components.huligennem.async_register_services",
             new_callable=AsyncMock,
@@ -50,17 +46,11 @@ async def test_async_setup_entry_connection_error():
     entry.runtime_data = None
 
     with (
-        patch(
-            "custom_components.huligennem.async_get_clientsession"
-        ),
-        patch(
-            "custom_components.huligennem.HuligennemAPI"
-        ) as mock_api_class,
+        patch("custom_components.huligennem.async_get_clientsession"),
+        patch("custom_components.huligennem.HuligennemAPI") as mock_api_class,
     ):
         mock_api = AsyncMock()
-        mock_api.async_get_series = AsyncMock(
-            side_effect=HuligennemApiError("Connection refused")
-        )
+        mock_api.async_get_series = AsyncMock(side_effect=HuligennemApiError("Connection refused"))
         mock_api_class.return_value = mock_api
 
         with pytest.raises(ConfigEntryNotReady):
@@ -73,9 +63,7 @@ async def test_async_unload_entry():
     hass = MagicMock()
     entry = MagicMock()
 
-    with patch(
-        "custom_components.huligennem.unregister_services"
-    ) as mock_unregister:
+    with patch("custom_components.huligennem.unregister_services") as mock_unregister:
         result = await async_unload_entry(hass, entry)
 
         assert result is True

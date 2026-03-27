@@ -83,9 +83,7 @@ async def async_handle_search_series(call: ServiceCall) -> ServiceResponse:
                 "id": s.get("id"),
                 "title": s.get("title"),
                 "slug": s.get("slug"),
-                "poster_url": s.get("poster", {}).get("media_url")
-                if s.get("poster")
-                else None,
+                "poster_url": s.get("poster", {}).get("media_url") if s.get("poster") else None,
             }
             for s in series
         ]

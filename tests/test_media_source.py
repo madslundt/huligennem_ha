@@ -24,9 +24,7 @@ from .conftest import (
 def api_mock():
     """Create a mock API."""
     api = AsyncMock()
-    api.async_get_series = AsyncMock(
-        return_value=SAMPLE_SERIES_PAGE_1["props"]["series"]["data"]
-    )
+    api.async_get_series = AsyncMock(return_value=SAMPLE_SERIES_PAGE_1["props"]["series"]["data"])
     api.async_get_playlist = AsyncMock(return_value=SAMPLE_PLAYLIST)
     api.async_get_live = AsyncMock(
         return_value={
@@ -82,9 +80,7 @@ class TestBrowseMedia:
         assert result.children[1].thumbnail == "https://cdn.example.com/poster1.jpg"
 
     @pytest.mark.asyncio
-    async def test_browse_series_multi_season(
-        self, media_source: HuligennemMediaSource
-    ):
+    async def test_browse_series_multi_season(self, media_source: HuligennemMediaSource):
         """Test browsing a series with multiple seasons shows seasons."""
         result = await media_source.async_browse_media(_item("series/1"))
 
@@ -95,13 +91,9 @@ class TestBrowseMedia:
         assert "season/10" in result.children[0].identifier
 
     @pytest.mark.asyncio
-    async def test_browse_series_single_season(
-        self, media_source: HuligennemMediaSource, api_mock
-    ):
+    async def test_browse_series_single_season(self, media_source: HuligennemMediaSource, api_mock):
         """Test browsing a series with single season shows episodes."""
-        api_mock.async_get_playlist = AsyncMock(
-            return_value=SAMPLE_PLAYLIST_SINGLE_SEASON
-        )
+        api_mock.async_get_playlist = AsyncMock(return_value=SAMPLE_PLAYLIST_SINGLE_SEASON)
         result = await media_source.async_browse_media(_item("series/1"))
 
         assert len(result.children) == 1
@@ -111,9 +103,7 @@ class TestBrowseMedia:
     @pytest.mark.asyncio
     async def test_browse_season(self, media_source: HuligennemMediaSource):
         """Test browsing a season shows episodes."""
-        result = await media_source.async_browse_media(
-            _item("series/1/season/10")
-        )
+        result = await media_source.async_browse_media(_item("series/1/season/10"))
 
         assert result.title == "Sæson 1"
         assert len(result.children) == 2
@@ -121,17 +111,13 @@ class TestBrowseMedia:
         assert "Episode 1" in result.children[0].title
 
     @pytest.mark.asyncio
-    async def test_browse_invalid_identifier(
-        self, media_source: HuligennemMediaSource
-    ):
+    async def test_browse_invalid_identifier(self, media_source: HuligennemMediaSource):
         """Test browsing with invalid identifier raises error."""
         with pytest.raises(MediaSourceError):
             await media_source.async_browse_media(_item("invalid/path"))
 
     @pytest.mark.asyncio
-    async def test_browse_series_invalid_id(
-        self, media_source: HuligennemMediaSource
-    ):
+    async def test_browse_series_invalid_id(self, media_source: HuligennemMediaSource):
         """Test browsing series with non-numeric ID raises error."""
         with pytest.raises(MediaSourceError, match="Invalid series"):
             await media_source.async_browse_media(_item("series/abc"))
@@ -143,9 +129,7 @@ class TestResolveMedia:
     @pytest.mark.asyncio
     async def test_resolve_episode(self, media_source: HuligennemMediaSource):
         """Test resolving an episode returns MP3 URL."""
-        result = await media_source.async_resolve_media(
-            _item("episode/100/serie/1")
-        )
+        result = await media_source.async_resolve_media(_item("episode/100/serie/1"))
 
         assert result.url == "https://huligennem-production.imgix.net/ep1.mp3"
         assert result.mime_type == "audio/mpeg"
@@ -159,9 +143,7 @@ class TestResolveMedia:
         assert result.mime_type == "application/x-mpegURL"
 
     @pytest.mark.asyncio
-    async def test_resolve_live_unavailable(
-        self, media_source: HuligennemMediaSource, api_mock
-    ):
+    async def test_resolve_live_unavailable(self, media_source: HuligennemMediaSource, api_mock):
         """Test resolving live when unavailable raises error."""
         api_mock.async_get_live = AsyncMock(return_value=None)
 
@@ -169,37 +151,25 @@ class TestResolveMedia:
             await media_source.async_resolve_media(_item("live"))
 
     @pytest.mark.asyncio
-    async def test_resolve_no_identifier(
-        self, media_source: HuligennemMediaSource
-    ):
+    async def test_resolve_no_identifier(self, media_source: HuligennemMediaSource):
         """Test resolving with no identifier raises error."""
         with pytest.raises(Unresolvable, match="No identifier"):
             await media_source.async_resolve_media(_item(None))
 
     @pytest.mark.asyncio
-    async def test_resolve_unknown_identifier(
-        self, media_source: HuligennemMediaSource
-    ):
+    async def test_resolve_unknown_identifier(self, media_source: HuligennemMediaSource):
         """Test resolving unknown identifier raises error."""
         with pytest.raises(Unresolvable, match="Unknown media"):
             await media_source.async_resolve_media(_item("unknown/thing"))
 
     @pytest.mark.asyncio
-    async def test_resolve_episode_not_found(
-        self, media_source: HuligennemMediaSource
-    ):
+    async def test_resolve_episode_not_found(self, media_source: HuligennemMediaSource):
         """Test resolving non-existent episode raises error."""
         with pytest.raises(Unresolvable, match="not found"):
-            await media_source.async_resolve_media(
-                _item("episode/999/serie/1")
-            )
+            await media_source.async_resolve_media(_item("episode/999/serie/1"))
 
     @pytest.mark.asyncio
-    async def test_resolve_episode_invalid_id(
-        self, media_source: HuligennemMediaSource
-    ):
+    async def test_resolve_episode_invalid_id(self, media_source: HuligennemMediaSource):
         """Test resolving episode with non-numeric ID raises error."""
         with pytest.raises(Unresolvable, match="Invalid episode"):
-            await media_source.async_resolve_media(
-                _item("episode/abc/serie/xyz")
-            )
+            await media_source.async_resolve_media(_item("episode/abc/serie/xyz"))

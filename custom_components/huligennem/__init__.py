@@ -44,9 +44,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HuligennemConfigEntry) -
     return True
 
 
-async def async_unload_entry(
-    hass: HomeAssistant, entry: HuligennemConfigEntry
-) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: HuligennemConfigEntry) -> bool:
     """Unload a HULiGENNEM config entry and clean up services."""
     unregister_services(hass)
     return True
