@@ -166,6 +166,96 @@ SAMPLE_PLAYLIST_EPISODIC = {
     }
 }
 
+SAMPLE_PLAYLIST_MULTIPART = {
+    "data": {
+        "id": 4,
+        "title": "Multi-Part Test Show",
+        "type": "podcast",
+        "seasons": [
+            {
+                "id": 20,
+                "title": "Sæson 1",
+                "episodes": [
+                    # Multi-part "del N" pair
+                    {
+                        "id": 1688,
+                        "title": "Afsnit 5 del 1",
+                        "poster": "https://cdn.example.com/ep1688.jpg",
+                        "media": {
+                            "url": "https://huligennem-production.imgix.net/ep1688.mp3",
+                            "duration_in_seconds": 1800,
+                        },
+                    },
+                    {
+                        "id": 1689,
+                        "title": "Afsnit 5 Del 2",
+                        "poster": "https://cdn.example.com/ep1689.jpg",
+                        "media": {
+                            "url": "https://huligennem-production.imgix.net/ep1689.mp3",
+                            "duration_in_seconds": 2100,
+                        },
+                    },
+                    # Regular episode (no part)
+                    {
+                        "id": 1690,
+                        "title": "Afsnit 6",
+                        "poster": "https://cdn.example.com/ep1690.jpg",
+                        "media": {
+                            "url": "https://huligennem-production.imgix.net/ep1690.mp3",
+                            "duration_in_seconds": 3000,
+                        },
+                    },
+                    # Multi-part "N:M" pair
+                    {
+                        "id": 1691,
+                        "title": "Afsnit 7 1:2",
+                        "poster": "https://cdn.example.com/ep1691.jpg",
+                        "media": {
+                            "url": "https://huligennem-production.imgix.net/ep1691.mp3",
+                            "duration_in_seconds": 1200,
+                        },
+                    },
+                    {
+                        "id": 1692,
+                        "title": "Afsnit 7 2:2",
+                        "poster": "https://cdn.example.com/ep1692.jpg",
+                        "media": {
+                            "url": "https://huligennem-production.imgix.net/ep1692.mp3",
+                            "duration_in_seconds": 1500,
+                        },
+                    },
+                    # Lone "del 1" — no matching "del 2" in this season
+                    {
+                        "id": 1693,
+                        "title": "Afsnit 8 del 1",
+                        "poster": "https://cdn.example.com/ep1693.jpg",
+                        "media": {
+                            "url": "https://huligennem-production.imgix.net/ep1693.mp3",
+                            "duration_in_seconds": 900,
+                        },
+                    },
+                ],
+            },
+            {
+                "id": 21,
+                "title": "Sæson 2",
+                "episodes": [
+                    # Same base title as the lone ep above — must NOT be cross-linked
+                    {
+                        "id": 1694,
+                        "title": "Afsnit 8 del 1",
+                        "poster": "https://cdn.example.com/ep1694.jpg",
+                        "media": {
+                            "url": "https://huligennem-production.imgix.net/ep1694.mp3",
+                            "duration_in_seconds": 950,
+                        },
+                    },
+                ],
+            },
+        ],
+    }
+}
+
 SAMPLE_LIVE_WITH_STREAM = {
     "props": {
         "countdown": {

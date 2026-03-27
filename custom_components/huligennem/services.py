@@ -11,6 +11,7 @@ All services return response data directly (``SupportsResponse.ONLY``).
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 import voluptuous as vol
@@ -38,6 +39,46 @@ SCHEMA_GET_EPISODES = vol.Schema(
 )
 
 SCHEMA_GET_LIVE = vol.Schema({})
+
+_PART_PATTERNS = [
+    re.compile(r"^(.*?)\s+del\s+(\d+)$", re.IGNORECASE),  # "del 1", "Del 2"
+    re.compile(r"^(.*?)\s+(\d+):\d+$"),  # "1:2", "2:2"
+]
+
+
+def _detect_part(title: str) -> tuple[str, int] | None:
+    """Return (base_title, part_number) if title matches a multi-part pattern, else None."""
+    for pattern in _PART_PATTERNS:
+        m = pattern.match(title)
+        if m:
+            return m.group(1).strip(), int(m.group(2))
+    return None
+
+
+def _annotate_episode_parts(episodes: list[dict[str, Any]]) -> None:
+    """Detect multi-part episodes and annotate them with part/prev_part_id/next_part_id.
+
+    Groups episodes by (season, normalised base title). Only groups with 2+ parts
+    are annotated — a lone "del 1" with no matching "del 2" is left unchanged.
+    Mutates the episode dicts in-place.
+    """
+    groups: dict[tuple[str | None, str], list[tuple[int, dict[str, Any]]]] = {}
+    for ep in episodes:
+        result = _detect_part(ep.get("title") or "")
+        if result is None:
+            continue
+        base_title, part_num = result
+        key = (ep.get("season"), base_title.lower())
+        groups.setdefault(key, []).append((part_num, ep))
+
+    for group in groups.values():
+        if len(group) < 2:
+            continue
+        group.sort(key=lambda x: x[0])
+        for i, (part_num, ep) in enumerate(group):
+            ep["part"] = part_num
+            ep["prev_part_id"] = group[i - 1][1]["id"] if i > 0 else None
+            ep["next_part_id"] = group[i + 1][1]["id"] if i < len(group) - 1 else None
 
 
 def get_api(hass: HomeAssistant) -> HuligennemAPI:
@@ -131,6 +172,7 @@ async def async_handle_get_episodes(call: ServiceCall) -> ServiceResponse:
         for ep in season.get("episodes", []):
             await _append_episode(ep, season.get("title"))
 
+    _annotate_episode_parts(episodes)
     return {"episodes": episodes}
 
 
