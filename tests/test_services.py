@@ -15,6 +15,7 @@ from custom_components.huligennem.services import (
 
 from .conftest import (
     SAMPLE_PLAYLIST,
+    SAMPLE_PLAYLIST_EPISODIC,
     SAMPLE_SERIES_PAGE_1,
 )
 
@@ -117,6 +118,18 @@ class TestGetEpisodes:
         )
         assert result["episodes"][0]["duration_seconds"] == 600
         assert result["episodes"][0]["season"] == "Sæson 1"
+
+    @pytest.mark.asyncio
+    async def test_get_episodes_episodic_series(self, mock_call, api_mock):
+        """Test getting episodes for an episodic series (top-level episodes, no seasons)."""
+        api_mock.async_get_playlist = AsyncMock(return_value=SAMPLE_PLAYLIST_EPISODIC)
+        call = mock_call({"serie_id": 2})
+        result = await async_handle_get_episodes(call)
+
+        assert len(result["episodes"]) == 2
+        assert result["episodes"][0]["title"] == "Episode 1"
+        assert result["episodes"][0]["season"] is None
+        assert result["episodes"][0]["duration_seconds"] == 600
 
 
 class TestGetLive:

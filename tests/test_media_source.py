@@ -15,6 +15,7 @@ from custom_components.huligennem.media_source import HuligennemMediaSource
 
 from .conftest import (
     SAMPLE_PLAYLIST,
+    SAMPLE_PLAYLIST_EPISODIC,
     SAMPLE_PLAYLIST_SINGLE_SEASON,
     SAMPLE_SERIES_PAGE_1,
 )
@@ -126,6 +127,18 @@ class TestBrowseMedia:
             await media_source.async_browse_media(_item("invalid/path"))
 
     @pytest.mark.asyncio
+    async def test_browse_series_episodic(self, media_source: HuligennemMediaSource, api_mock):
+        """Test browsing an episodic series (top-level episodes, no seasons) shows episodes."""
+        api_mock.async_get_playlist = AsyncMock(return_value=SAMPLE_PLAYLIST_EPISODIC)
+        result = await media_source.async_browse_media(_item("series/1"))
+
+        assert result.title == "Morgenknas"
+        assert len(result.children) == 2
+        assert result.children[0].can_play is True
+        assert result.children[0].title == "Episode 1 (10 min)"
+        assert "episode/100" in result.children[0].identifier
+
+    @pytest.mark.asyncio
     async def test_browse_series_invalid_id(self, media_source: HuligennemMediaSource):
         """Test browsing series with non-numeric ID raises error."""
         with pytest.raises(MediaSourceError, match="Invalid series"):
@@ -150,7 +163,18 @@ class TestResolveMedia:
 
     @pytest.mark.asyncio
     async def test_resolve_episode_fallback_to_playlist(self, media_source: HuligennemMediaSource):
-        """Test fallback to playlist CDN URL when no Spreaker URL available."""
+        """Test fallback to playlist CDN URL when no Spreaker URL available (seasonal)."""
+        result = await media_source.async_resolve_media(_item("episode/100/serie/1"))
+
+        assert result.url == "https://huligennem-production.imgix.net/ep1.mp3"
+        assert result.mime_type == "audio/mpeg"
+
+    @pytest.mark.asyncio
+    async def test_resolve_episode_fallback_episodic(
+        self, media_source: HuligennemMediaSource, api_mock
+    ):
+        """Test fallback to playlist CDN URL for episodic series (top-level episodes)."""
+        api_mock.async_get_playlist = AsyncMock(return_value=SAMPLE_PLAYLIST_EPISODIC)
         result = await media_source.async_resolve_media(_item("episode/100/serie/1"))
 
         assert result.url == "https://huligennem-production.imgix.net/ep1.mp3"

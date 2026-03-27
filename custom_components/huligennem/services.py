@@ -105,21 +105,31 @@ async def async_handle_get_episodes(call: ServiceCall) -> ServiceResponse:
     playlist = await api.async_get_playlist(serie_id)
 
     episodes: list[dict[str, Any]] = []
-    for season in playlist.get("data", {}).get("seasons", []):
+    data = playlist.get("data", {})
+
+    async def _append_episode(ep: dict, season_title: str | None) -> None:
+        media = ep.get("media", {})
+        episode_id = ep.get("id")
+        # Prefer Spreaker URL (counts in HULiGENNEM's stats), fall back to backup CDN URL
+        media_url = await api.async_get_episode_url(serie_id, episode_id) or media.get("url")
+        episodes.append(
+            {
+                "id": episode_id,
+                "title": ep.get("title"),
+                "season": season_title,
+                "media_url": media_url,
+                "duration_seconds": media.get("duration_in_seconds"),
+            }
+        )
+
+    # Episodic series: episodes at top level (no season grouping)
+    for ep in data.get("episodes", []):
+        await _append_episode(ep, None)
+
+    # Seasonal series: episodes nested under seasons
+    for season in data.get("seasons", []):
         for ep in season.get("episodes", []):
-            media = ep.get("media", {})
-            episode_id = ep.get("id")
-            # Prefer Spreaker URL (counts in HULiGENNEM's stats), fall back to backup CDN URL
-            media_url = await api.async_get_episode_url(serie_id, episode_id) or media.get("url")
-            episodes.append(
-                {
-                    "id": episode_id,
-                    "title": ep.get("title"),
-                    "season": season.get("title"),
-                    "media_url": media_url,
-                    "duration_seconds": media.get("duration_in_seconds"),
-                }
-            )
+            await _append_episode(ep, season.get("title"))
 
     return {"episodes": episodes}
 

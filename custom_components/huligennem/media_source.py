@@ -109,7 +109,18 @@ class HuligennemMediaSource(MediaSource):
 
         # Fall back to the playlist API (backup CDN URL).
         playlist = await api.async_get_playlist(serie_id)
-        for season in playlist.get("data", {}).get("seasons", []):
+        data = playlist.get("data", {})
+
+        # Episodic series: episodes at top level
+        for episode in data.get("episodes", []):
+            if episode.get("id") == episode_id:
+                media_url = episode.get("media", {}).get("url")
+                if media_url:
+                    return PlayMedia(media_url, "audio/mpeg")
+                raise Unresolvable("Episode has no media URL")
+
+        # Seasonal series: episodes nested under seasons
+        for season in data.get("seasons", []):
             for episode in season.get("episodes", []):
                 if episode.get("id") == episode_id:
                     media_url = episode.get("media", {}).get("url")
@@ -195,12 +206,18 @@ class HuligennemMediaSource(MediaSource):
         api = get_api(self.hass)
         playlist = await api.async_get_playlist(serie_id)
 
-        serie_title = playlist.get("data", {}).get("title", "Unknown")
-        seasons = playlist.get("data", {}).get("seasons", [])
+        data = playlist.get("data", {})
+        serie_title = data.get("title", "Unknown")
+        seasons = data.get("seasons", [])
+        top_episodes = data.get("episodes", [])
 
         children: list[BrowseMediaSource] = []
 
-        if len(seasons) == 1:
+        if top_episodes and not seasons:
+            # Episodic series: episodes live at the top level, no season grouping
+            for episode in top_episodes:
+                children.append(self._episode_to_browse(episode, serie_id))
+        elif len(seasons) == 1:
             for episode in seasons[0].get("episodes", []):
                 children.append(self._episode_to_browse(episode, serie_id))
         else:

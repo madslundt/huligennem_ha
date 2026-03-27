@@ -137,6 +137,35 @@ SAMPLE_PLAYLIST_SINGLE_SEASON = {
     }
 }
 
+SAMPLE_PLAYLIST_EPISODIC = {
+    "data": {
+        "id": 2,
+        "title": "Morgenknas",
+        "type": "podcast",
+        "seasons": [],
+        "episodes": [
+            {
+                "id": 100,
+                "title": "Episode 1",
+                "poster": "https://cdn.example.com/ep1.jpg",
+                "media": {
+                    "url": "https://huligennem-production.imgix.net/ep1.mp3",
+                    "duration_in_seconds": 600,
+                },
+            },
+            {
+                "id": 101,
+                "title": "Episode 2",
+                "poster": "https://cdn.example.com/ep2.jpg",
+                "media": {
+                    "url": "https://huligennem-production.imgix.net/ep2.mp3",
+                    "duration_in_seconds": 900,
+                },
+            },
+        ],
+    }
+}
+
 SAMPLE_LIVE_WITH_STREAM = {
     "props": {
         "countdown": {
