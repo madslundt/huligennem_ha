@@ -10,9 +10,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   lint:
     name: Lint
@@ -20,7 +17,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
-      - uses: astral-sh/ruff-action@v3
+      - name: Ruff check
+        run: uvx ruff check .
+      - name: Ruff format
+        run: uvx ruff format --check .
 
   test:
     name: Test (Python ${{ matrix.python-version }})
