@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import time
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from custom_components.huligennem.api import HuligennemAPI, HuligennemApiError
+from custom_components.huligennem.const import SERIES_CACHE_TTL
 
 from .conftest import (
     SAMPLE_LIVE_WITH_STREAM,
@@ -185,8 +187,9 @@ class TestAsyncGetPlaylist:
         api = HuligennemAPI(session)
         await api.async_get_playlist(1)
 
-        # Manually expire the cache entry
-        api._playlist_cache[1] = (0, api._playlist_cache[1][1])
+        # Manually expire the cache entry (set timestamp far in the past)
+        expired_time = time.monotonic() - SERIES_CACHE_TTL - 1
+        api._playlist_cache[1] = (expired_time, api._playlist_cache[1][1])
 
         # Fetch a different playlist — should evict the expired one
         await api.async_get_playlist(2)
