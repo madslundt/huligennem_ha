@@ -1,13 +1,13 @@
 {
   "domain": "huligennem",
   "name": "HULiGENNEM",
-  "version": "1.0.0",
   "codeowners": ["@madslundt"],
   "config_flow": true,
   "documentation": "https://github.com/madslundt/huligennem_ha",
-  "issue_tracker": "https://github.com/madslundt/huligennem_ha/issues",
   "integration_type": "service",
   "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/madslundt/huligennem_ha/issues",
   "requirements": [],
-  "single_config_entry": true
+  "single_config_entry": true,
+  "version": "1.0.1"
 }
