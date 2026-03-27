@@ -196,6 +196,8 @@ class HuligennemMediaSource(MediaSource):
                 children.append(self._episode_to_browse(episode, serie_id))
         else:
             for season in seasons:
+                episodes = season.get("episodes", [])
+                season_thumbnail = episodes[0].get("poster") if episodes else None
                 children.append(
                     BrowseMediaSource(
                         domain=DOMAIN,
@@ -205,7 +207,7 @@ class HuligennemMediaSource(MediaSource):
                         title=season.get("title", f"Season {season.get('id')}"),
                         can_play=False,
                         can_expand=True,
-                        thumbnail=None,
+                        thumbnail=season_thumbnail,
                     )
                 )
 

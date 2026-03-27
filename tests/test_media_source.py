@@ -91,6 +91,14 @@ class TestBrowseMedia:
         assert "season/10" in result.children[0].identifier
 
     @pytest.mark.asyncio
+    async def test_browse_series_multi_season_thumbnails(self, media_source: HuligennemMediaSource):
+        """Test that season items use the first episode poster as thumbnail."""
+        result = await media_source.async_browse_media(_item("series/1"))
+
+        assert result.children[0].thumbnail == "https://cdn.example.com/ep1.jpg"
+        assert result.children[1].thumbnail == "https://cdn.example.com/s2ep1.jpg"
+
+    @pytest.mark.asyncio
     async def test_browse_series_single_season(self, media_source: HuligennemMediaSource, api_mock):
         """Test browsing a series with single season shows episodes."""
         api_mock.async_get_playlist = AsyncMock(return_value=SAMPLE_PLAYLIST_SINGLE_SEASON)
