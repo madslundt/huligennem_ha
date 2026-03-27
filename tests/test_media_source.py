@@ -149,9 +149,7 @@ class TestResolveMedia:
         assert result.mime_type == "audio/mpeg"
 
     @pytest.mark.asyncio
-    async def test_resolve_episode_fallback_to_playlist(
-        self, media_source: HuligennemMediaSource
-    ):
+    async def test_resolve_episode_fallback_to_playlist(self, media_source: HuligennemMediaSource):
         """Test fallback to playlist CDN URL when no Spreaker URL available."""
         result = await media_source.async_resolve_media(_item("episode/100/serie/1"))
 
