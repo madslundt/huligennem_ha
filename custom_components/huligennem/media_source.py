@@ -1,0 +1,280 @@
+"""Media source implementation for HULiGENNEM.
+
+Exposes the HULiGENNEM podcast catalog and live radio as a browsable
+media source in Home Assistant's Media Browser. Supports a three-level
+hierarchy: Series -> Seasons -> Episodes, with single-season series
+flattened to skip the season level.
+
+Media identifiers:
+    - ``live`` -> HLS live stream
+    - ``episode/{episode_id}/serie/{serie_id}`` -> Direct MP3
+    - ``series/{id}`` -> Browse series (seasons or episodes)
+    - ``series/{id}/season/{season_id}`` -> Browse season episodes
+"""
+
+from __future__ import annotations
+
+from homeassistant.components.media_player import MediaClass
+from homeassistant.components.media_source import (
+    BrowseMediaSource,
+    MediaSource,
+    MediaSourceItem,
+    PlayMedia,
+    Unresolvable,
+)
+from homeassistant.components.media_source.error import MediaSourceError
+from homeassistant.core import HomeAssistant
+
+from .const import DOMAIN
+from .services import get_api
+
+
+async def async_get_media_source(hass: HomeAssistant) -> HuligennemMediaSource:
+    """Set up and return the HULiGENNEM media source."""
+    return HuligennemMediaSource(hass)
+
+
+class HuligennemMediaSource(MediaSource):
+    """Provide HULiGENNEM podcasts and live radio as a media source.
+
+    Integrates with HA's Media Browser to allow users to browse
+    series, seasons, and episodes with thumbnails.
+    """
+
+    name = "HULiGENNEM"
+
+    def __init__(self, hass: HomeAssistant) -> None:
+        """Initialize the media source."""
+        super().__init__(DOMAIN)
+        self.hass = hass
+
+    async def async_resolve_media(self, item: MediaSourceItem) -> PlayMedia:
+        """Resolve a media item identifier to a playable URL.
+
+        Args:
+            item: Media source item with an identifier string.
+
+        Returns:
+            PlayMedia with the direct URL and MIME type.
+
+        Raises:
+            Unresolvable: If the identifier is invalid or the media
+                cannot be found.
+
+        """
+        identifier = item.identifier
+        if not identifier:
+            raise Unresolvable("No identifier provided")
+
+        if identifier == "live":
+            return await self._resolve_live()
+
+        if identifier.startswith("episode/"):
+            return await self._resolve_episode(identifier)
+
+        raise Unresolvable(f"Unknown media identifier: {identifier}")
+
+    async def _resolve_live(self) -> PlayMedia:
+        """Resolve the live stream to an HLS URL."""
+        api = get_api(self.hass)
+        live = await api.async_get_live()
+        if not live:
+            raise Unresolvable("Live stream is not currently available")
+        return PlayMedia(live["stream_url"], "application/x-mpegURL")
+
+    async def _resolve_episode(self, identifier: str) -> PlayMedia:
+        """Resolve an episode identifier to its direct MP3 URL.
+
+        Expected format: ``episode/{episode_id}/serie/{serie_id}``
+        """
+        parts = identifier.split("/")
+        if len(parts) != 4:
+            raise Unresolvable(f"Invalid episode identifier: {identifier}")
+
+        try:
+            episode_id = int(parts[1])
+            serie_id = int(parts[3])
+        except ValueError as err:
+            raise Unresolvable(
+                f"Invalid episode identifier: {identifier}"
+            ) from err
+
+        api = get_api(self.hass)
+        playlist = await api.async_get_playlist(serie_id)
+
+        for season in playlist.get("data", {}).get("seasons", []):
+            for episode in season.get("episodes", []):
+                if episode.get("id") == episode_id:
+                    media_url = episode.get("media", {}).get("url")
+                    if media_url:
+                        return PlayMedia(media_url, "audio/mpeg")
+                    raise Unresolvable("Episode has no media URL")
+
+        raise Unresolvable(f"Episode {episode_id} not found in series {serie_id}")
+
+    async def async_browse_media(
+        self, item: MediaSourceItem
+    ) -> BrowseMediaSource:
+        """Browse the media hierarchy.
+
+        Routes based on the identifier prefix to the appropriate
+        browse handler (root, series, or season).
+        """
+        identifier = item.identifier
+
+        if not identifier:
+            return await self._browse_root()
+
+        if identifier.startswith("series/") and "/season/" in identifier:
+            return await self._browse_season(identifier)
+
+        if identifier.startswith("series/"):
+            return await self._browse_series(identifier)
+
+        raise MediaSourceError(f"Unknown browse identifier: {identifier}")
+
+    async def _browse_root(self) -> BrowseMediaSource:
+        """Browse the root level: live radio + all series."""
+        api = get_api(self.hass)
+        series = await api.async_get_series()
+
+        children: list[BrowseMediaSource] = []
+
+        children.append(
+            BrowseMediaSource(
+                domain=DOMAIN,
+                identifier="live",
+                media_class=MediaClass.MUSIC,
+                media_content_type="application/x-mpegURL",
+                title="Live Radio",
+                can_play=True,
+                can_expand=False,
+                thumbnail=None,
+            )
+        )
+
+        for serie in series:
+            poster = serie.get("poster")
+            thumbnail = poster.get("media_url") if isinstance(poster, dict) else None
+            children.append(
+                BrowseMediaSource(
+                    domain=DOMAIN,
+                    identifier=f"series/{serie['id']}",
+                    media_class=MediaClass.PODCAST,
+                    media_content_type="",
+                    title=serie.get("title", "Unknown"),
+                    can_play=False,
+                    can_expand=True,
+                    thumbnail=thumbnail,
+                )
+            )
+
+        return BrowseMediaSource(
+            domain=DOMAIN,
+            identifier="",
+            media_class=MediaClass.DIRECTORY,
+            media_content_type="",
+            title="HULiGENNEM",
+            can_play=False,
+            can_expand=True,
+            children=children,
+        )
+
+    async def _browse_series(self, identifier: str) -> BrowseMediaSource:
+        """Browse a series: show seasons, or episodes if single season."""
+        try:
+            serie_id = int(identifier.split("/")[1])
+        except (ValueError, IndexError) as err:
+            raise MediaSourceError(f"Invalid series identifier: {identifier}") from err
+
+        api = get_api(self.hass)
+        playlist = await api.async_get_playlist(serie_id)
+
+        serie_title = playlist.get("data", {}).get("title", "Unknown")
+        seasons = playlist.get("data", {}).get("seasons", [])
+
+        children: list[BrowseMediaSource] = []
+
+        if len(seasons) == 1:
+            for episode in seasons[0].get("episodes", []):
+                children.append(self._episode_to_browse(episode, serie_id))
+        else:
+            for season in seasons:
+                children.append(
+                    BrowseMediaSource(
+                        domain=DOMAIN,
+                        identifier=f"series/{serie_id}/season/{season['id']}",
+                        media_class=MediaClass.PODCAST,
+                        media_content_type="",
+                        title=season.get("title", f"Season {season.get('id')}"),
+                        can_play=False,
+                        can_expand=True,
+                        thumbnail=None,
+                    )
+                )
+
+        return BrowseMediaSource(
+            domain=DOMAIN,
+            identifier=identifier,
+            media_class=MediaClass.PODCAST,
+            media_content_type="",
+            title=serie_title,
+            can_play=False,
+            can_expand=True,
+            children=children,
+        )
+
+    async def _browse_season(self, identifier: str) -> BrowseMediaSource:
+        """Browse a season: show its episodes."""
+        parts = identifier.split("/")
+        try:
+            serie_id = int(parts[1])
+            season_id = int(parts[3])
+        except (ValueError, IndexError) as err:
+            raise MediaSourceError(f"Invalid season identifier: {identifier}") from err
+
+        api = get_api(self.hass)
+        playlist = await api.async_get_playlist(serie_id)
+
+        season_title = "Unknown"
+        children: list[BrowseMediaSource] = []
+
+        for season in playlist.get("data", {}).get("seasons", []):
+            if season.get("id") == season_id:
+                season_title = season.get("title", f"Season {season_id}")
+                for episode in season.get("episodes", []):
+                    children.append(self._episode_to_browse(episode, serie_id))
+                break
+
+        return BrowseMediaSource(
+            domain=DOMAIN,
+            identifier=identifier,
+            media_class=MediaClass.PODCAST,
+            media_content_type="",
+            title=season_title,
+            can_play=False,
+            can_expand=True,
+            children=children,
+        )
+
+    def _episode_to_browse(
+        self, episode: dict, serie_id: int
+    ) -> BrowseMediaSource:
+        """Convert an episode dict to a browsable media source item."""
+        media = episode.get("media", {})
+        duration = media.get("duration_in_seconds")
+        title = episode.get("title", "Unknown")
+        if duration:
+            minutes = duration // 60
+            title = f"{title} ({minutes} min)"
+
+        return BrowseMediaSource(
+            domain=DOMAIN,
+            identifier=f"episode/{episode['id']}/serie/{serie_id}",
+            media_class=MediaClass.PODCAST,
+            media_content_type="audio/mpeg",
+            title=title,
+            can_play=True,
+            can_expand=False,
+            thumbnail=episode.get("poster"),
+        )
