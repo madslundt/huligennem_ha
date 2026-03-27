@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import time
 from unittest.mock import AsyncMock, MagicMock
 
@@ -368,10 +369,8 @@ class TestUserAgentHeader:
         session.get = MagicMock(return_value=_make_ctx(resp))
 
         api = HuligennemAPI(session)
-        try:
+        with contextlib.suppress(Exception):
             await api._fetch("https://example.com")
-        except Exception:
-            pass
 
         _, kwargs = session.get.call_args
         assert kwargs.get("headers", {}).get("User-Agent") == USER_AGENT
