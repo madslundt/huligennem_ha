@@ -24,16 +24,16 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.13", "3.14"]
+        python-version: ["3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       - name: Set up Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
       - name: Install dependencies
-        run: uv sync --group dev
+        run: uv sync --group dev -p ${{ matrix.python-version }}
       - name: Run tests
-        run: uv run pytest tests/ -v --timeout=60
+        run: uv run -p ${{ matrix.python-version }} pytest tests/ -v --timeout=60
 
   validate:
     name: HACS Validation
