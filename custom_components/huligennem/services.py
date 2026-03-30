@@ -97,7 +97,7 @@ def get_api(hass: HomeAssistant) -> HuligennemAPI:
     entries = hass.config_entries.async_entries(DOMAIN)
     if not entries:
         raise ValueError("HULiGENNEM integration not configured")
-    return entries[0].runtime_data
+    return entries[0].runtime_data.api
 
 
 async def async_handle_search_series(call: ServiceCall) -> ServiceResponse:

@@ -25,6 +25,10 @@ SERIES_CACHE_TTL = 3600
 LIVE_CACHE_TTL = 300
 """Time-to-live in seconds for live stream cache (5 minutes)."""
 
+LIVE_STATUS_CACHE_TTL = 55
+"""Time-to-live in seconds for the full live-status cache (slightly under the
+60-second coordinator poll interval so each coordinator tick hits the network)."""
+
 MAX_PLAYLIST_CACHE_SIZE = 100
 """Maximum number of playlist entries to keep in the in-memory cache."""
 

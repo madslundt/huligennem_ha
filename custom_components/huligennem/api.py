@@ -21,7 +21,7 @@ from typing import Any
 import aiohttp
 
 from .const import (
-    LIVE_CACHE_TTL,
+    LIVE_STATUS_CACHE_TTL,
     LIVE_URL,
     MAX_PLAYLIST_CACHE_SIZE,
     PLAYLIST_URL,
@@ -69,8 +69,8 @@ class HuligennemAPI:
         self._series_cache_time: float = 0
         self._playlist_cache: dict[int, tuple[float, dict[str, Any]]] = {}
         self._episode_url_cache: dict[int, tuple[float, dict[int, str]]] = {}
-        self._live_cache: dict[str, Any] | None = None
-        self._live_cache_time: float = 0
+        self._live_status_cache: dict[str, Any] | None = None
+        self._live_status_cache_time: float = 0
         self._series_lock = asyncio.Lock()
         self._live_lock = asyncio.Lock()
 
@@ -207,53 +207,81 @@ class HuligennemAPI:
         self._playlist_cache[serie_id] = (now, data)
         return data
 
+    async def async_get_live_status(self) -> dict[str, Any]:
+        """Fetch full live status including scheduled times.
+
+        Always returns a dict (never ``None``). Includes countdown data even
+        when not on-air so sensors can show the next scheduled broadcast.
+        Concurrent calls are serialized via ``_live_lock``. Cached for
+        ``LIVE_STATUS_CACHE_TTL`` seconds (slightly under the 60-second
+        coordinator poll interval).
+
+        Returns:
+            Dict with ``on_air`` (bool), ``title``, ``stream_url``,
+            ``planned_starts_at``, and ``planned_ends_at``.
+
+        """
+        now = time.monotonic()
+        if (
+            self._live_status_cache is not None
+            and (now - self._live_status_cache_time) < LIVE_STATUS_CACHE_TTL
+        ):
+            return self._live_status_cache
+
+        async with self._live_lock:
+            now = time.monotonic()
+            if (
+                self._live_status_cache is not None
+                and (now - self._live_status_cache_time) < LIVE_STATUS_CACHE_TTL
+            ):
+                return self._live_status_cache
+
+            live_html = await self._fetch(LIVE_URL)
+            page_data = self._parse_inertia_page(live_html)
+            props = page_data.get("props", {})
+
+            on_air_raw = props.get("onAir")
+            live_show = props.get("liveShow") if on_air_raw else None
+            countdown = props.get("countdown")
+
+            on_air = bool(live_show and live_show.get("stream_url"))
+            result: dict[str, Any] = {
+                "on_air": on_air,
+                "title": live_show.get("title", "HULiGENNEM Live")
+                if on_air and live_show
+                else None,
+                "stream_url": live_show.get("stream_url") if on_air and live_show else None,
+                "planned_starts_at": countdown.get("planned_starts_at")
+                if isinstance(countdown, dict)
+                else None,
+                "planned_ends_at": countdown.get("planned_ends_at")
+                if isinstance(countdown, dict)
+                else None,
+            }
+            self._live_status_cache = result
+            self._live_status_cache_time = time.monotonic()
+            return result
+
     async def async_get_live(self) -> dict[str, Any] | None:
         """Fetch current live stream information.
 
-        Parses the Inertia HTML at ``/live`` for
-        ``props.countdown.live_show.stream_url``. Concurrent calls are
-        serialized via an asyncio lock. Cached for ``LIVE_CACHE_TTL`` seconds.
+        Delegates to ``async_get_live_status()`` and returns a subset dict
+        when on-air, or ``None`` when not currently live.
 
         Returns:
             Dict with ``title``, ``stream_url``, ``planned_starts_at``,
             and ``planned_ends_at`` if a stream is available, else ``None``.
 
         """
-        now = time.monotonic()
-        if self._live_cache is not None and (now - self._live_cache_time) < LIVE_CACHE_TTL:
-            return self._live_cache
-
-        async with self._live_lock:
-            # Re-check cache under lock
-            now = time.monotonic()
-            if self._live_cache is not None and (now - self._live_cache_time) < LIVE_CACHE_TTL:
-                return self._live_cache
-
-            live_html = await self._fetch(LIVE_URL)
-            page_data = self._parse_inertia_page(live_html)
-            props = page_data.get("props", {})
-
-            on_air = props.get("onAir")
-            live_show = props.get("liveShow") if on_air else None
-
-            if live_show and live_show.get("stream_url"):
-                countdown = props.get("countdown")
-                result: dict[str, Any] = {
-                    "title": live_show.get("title", "HULiGENNEM Live"),
-                    "stream_url": live_show["stream_url"],
-                    "planned_starts_at": countdown.get("planned_starts_at")
-                    if isinstance(countdown, dict)
-                    else None,
-                    "planned_ends_at": countdown.get("planned_ends_at")
-                    if isinstance(countdown, dict)
-                    else None,
-                }
-            else:
-                result = None
-
-            self._live_cache = result
-            self._live_cache_time = time.monotonic()
-            return result
+        status = await self.async_get_live_status()
+        if not status["on_air"]:
+            return None
+        return {
+            "title": status["title"],
+            "stream_url": status["stream_url"],
+            "planned_starts_at": status["planned_starts_at"],
+            "planned_ends_at": status["planned_ends_at"],
+        }
 
     async def async_get_episode_url(self, serie_id: int, episode_id: int) -> str | None:
         """Return the best playback URL for an episode.

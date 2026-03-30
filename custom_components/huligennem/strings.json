@@ -10,6 +10,21 @@
       "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]"
     }
   },
+  "entity": {
+    "binary_sensor": {
+      "on_air": {
+        "name": "On Air"
+      }
+    },
+    "sensor": {
+      "planned_starts_at": {
+        "name": "Next Live Start"
+      },
+      "planned_ends_at": {
+        "name": "Next Live End"
+      }
+    }
+  },
   "services": {
     "search_series": {
       "name": "Search Series",

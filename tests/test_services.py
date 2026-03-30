@@ -46,7 +46,7 @@ def mock_call(api_mock):
     """Create a factory for mock ServiceCall objects."""
     hass = MagicMock()
     entry = MagicMock()
-    entry.runtime_data = api_mock
+    entry.runtime_data = MagicMock(api=api_mock)
     hass.config_entries.async_entries = MagicMock(return_value=[entry])
 
     def make_call(data: dict | None = None) -> ServiceCall:
@@ -143,7 +143,7 @@ class TestGetEpisodesMultiPart:
         api_mock.async_get_episode_url = AsyncMock(return_value=None)
         hass = MagicMock()
         entry = MagicMock()
-        entry.runtime_data = api_mock
+        entry.runtime_data = MagicMock(api=api_mock)
         hass.config_entries.async_entries = MagicMock(return_value=[entry])
 
         def make_call(data: dict | None = None) -> ServiceCall:

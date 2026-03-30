@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from custom_components.huligennem.api import HuligennemAPI, HuligennemApiError
-from custom_components.huligennem.const import SERIES_CACHE_TTL, USER_AGENT
+from custom_components.huligennem.const import LIVE_STATUS_CACHE_TTL, SERIES_CACHE_TTL, USER_AGENT
 
 from .conftest import (
     SAMPLE_LIVE_WITH_STREAM,
@@ -258,8 +258,93 @@ class TestAsyncGetLive:
         live1 = await api.async_get_live()
         live2 = await api.async_get_live()
 
-        assert live1 is live2
+        assert live1 == live2
         assert session.get.call_count == 1
+
+
+class TestAsyncGetLiveStatus:
+    """Tests for async_get_live_status."""
+
+    @pytest.mark.asyncio
+    async def test_status_on_air(self):
+        """Test full status when live stream is active."""
+        session = MagicMock()
+        html = make_inertia_html(SAMPLE_LIVE_WITH_STREAM)
+        resp = _mock_response(text=html)
+        session.get = MagicMock(return_value=_make_ctx(resp))
+
+        api = HuligennemAPI(session)
+        status = await api.async_get_live_status()
+
+        assert status["on_air"] is True
+        assert status["stream_url"] == "https://stream.example.com/live.m3u8"
+        assert status["title"] == "Live Show Now"
+        assert status["planned_starts_at"] == "2026-03-27T14:00:00.000000Z"
+        assert status["planned_ends_at"] == "2026-03-27T17:00:00.000000Z"
+
+    @pytest.mark.asyncio
+    async def test_status_off_air_has_countdown(self):
+        """Test that countdown data is returned even when not on-air."""
+        session = MagicMock()
+        html = make_inertia_html(SAMPLE_LIVE_WITHOUT_STREAM)
+        resp = _mock_response(text=html)
+        session.get = MagicMock(return_value=_make_ctx(resp))
+
+        api = HuligennemAPI(session)
+        status = await api.async_get_live_status()
+
+        assert status["on_air"] is False
+        assert status["stream_url"] is None
+        assert status["planned_starts_at"] == "2026-03-28T14:00:00.000000Z"
+        assert status["planned_ends_at"] == "2026-03-28T17:00:00.000000Z"
+
+    @pytest.mark.asyncio
+    async def test_status_caching(self):
+        """Test that full status is cached and only one HTTP request is made."""
+        session = MagicMock()
+        html = make_inertia_html(SAMPLE_LIVE_WITH_STREAM)
+        resp = _mock_response(text=html)
+        session.get = MagicMock(return_value=_make_ctx(resp))
+
+        api = HuligennemAPI(session)
+        status1 = await api.async_get_live_status()
+        status2 = await api.async_get_live_status()
+
+        assert status1 is status2
+        assert session.get.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_status_null_countdown(self):
+        """Test that null countdown does not raise and returns None timestamps."""
+        session = MagicMock()
+        html = make_inertia_html({"props": {"onAir": None, "countdown": None}})
+        resp = _mock_response(text=html)
+        session.get = MagicMock(return_value=_make_ctx(resp))
+
+        api = HuligennemAPI(session)
+        status = await api.async_get_live_status()
+
+        assert status["on_air"] is False
+        assert status["planned_starts_at"] is None
+        assert status["planned_ends_at"] is None
+
+    @pytest.mark.asyncio
+    async def test_status_cache_expires(self):
+        """Test that cached status is refreshed after TTL expires."""
+        session = MagicMock()
+        html = make_inertia_html(SAMPLE_LIVE_WITH_STREAM)
+        resp = _mock_response(text=html)
+        session.get = MagicMock(return_value=_make_ctx(resp))
+
+        api = HuligennemAPI(session)
+        await api.async_get_live_status()
+
+        # Manually expire the cache
+        import time
+        api._live_status_cache_time = time.monotonic() - LIVE_STATUS_CACHE_TTL - 1
+
+        await api.async_get_live_status()
+        assert session.get.call_count == 2
 
 
 class TestAsyncGetEpisodeUrl:

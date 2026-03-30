@@ -44,7 +44,7 @@ def media_source(api_mock):
     """Create a media source with a mocked API."""
     hass = MagicMock()
     entry = MagicMock()
-    entry.runtime_data = api_mock
+    entry.runtime_data = MagicMock(api=api_mock)
     hass.config_entries.async_entries = MagicMock(return_value=[entry])
 
     source = HuligennemMediaSource(hass)
