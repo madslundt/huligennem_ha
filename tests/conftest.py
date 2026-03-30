@@ -258,6 +258,12 @@ SAMPLE_PLAYLIST_MULTIPART = {
 
 SAMPLE_LIVE_WITH_STREAM = {
     "props": {
+        "onAir": True,
+        "liveShow": {
+            "id": 2,
+            "title": "Live Show Now",
+            "stream_url": "https://stream.example.com/live.m3u8",
+        },
         "countdown": {
             "id": 1,
             "title": "Live Show Now",
@@ -268,19 +274,25 @@ SAMPLE_LIVE_WITH_STREAM = {
                 "title": "Live Show Now",
                 "stream_url": "https://stream.example.com/live.m3u8",
             },
-        }
+        },
     }
 }
 
 SAMPLE_LIVE_WITHOUT_STREAM = {
     "props": {
+        "onAir": None,
+        "liveShow": None,
         "countdown": {
             "id": 1,
             "title": "Next Show",
             "planned_starts_at": "2026-03-28T14:00:00.000000Z",
             "planned_ends_at": "2026-03-28T17:00:00.000000Z",
-            "live_show": None,
-        }
+            "live_show": {
+                "id": 2,
+                "title": "Next Show",
+                "stream_url": "https://stream.example.com/live.m3u8",
+            },
+        },
     }
 }
 

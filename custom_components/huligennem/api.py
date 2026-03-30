@@ -233,15 +233,20 @@ class HuligennemAPI:
             page_data = self._parse_inertia_page(live_html)
             props = page_data.get("props", {})
 
-            countdown = props.get("countdown")
-            live_show = countdown.get("live_show") if isinstance(countdown, dict) else None
+            on_air = props.get("onAir")
+            live_show = props.get("liveShow") if on_air else None
 
             if live_show and live_show.get("stream_url"):
+                countdown = props.get("countdown")
                 result: dict[str, Any] = {
                     "title": live_show.get("title", "HULiGENNEM Live"),
                     "stream_url": live_show["stream_url"],
-                    "planned_starts_at": countdown.get("planned_starts_at"),
-                    "planned_ends_at": countdown.get("planned_ends_at"),
+                    "planned_starts_at": countdown.get("planned_starts_at")
+                    if isinstance(countdown, dict)
+                    else None,
+                    "planned_ends_at": countdown.get("planned_ends_at")
+                    if isinstance(countdown, dict)
+                    else None,
                 }
             else:
                 result = None
