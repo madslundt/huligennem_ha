@@ -241,8 +241,12 @@ class HuligennemAPI:
                 result: dict[str, Any] = {
                     "title": live_show.get("title", "HULiGENNEM Live"),
                     "stream_url": live_show["stream_url"],
-                    "planned_starts_at": countdown.get("planned_starts_at") if isinstance(countdown, dict) else None,
-                    "planned_ends_at": countdown.get("planned_ends_at") if isinstance(countdown, dict) else None,
+                    "planned_starts_at": countdown.get("planned_starts_at")
+                    if isinstance(countdown, dict)
+                    else None,
+                    "planned_ends_at": countdown.get("planned_ends_at")
+                    if isinstance(countdown, dict)
+                    else None,
                 }
             else:
                 result = None
