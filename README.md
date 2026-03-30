@@ -176,7 +176,13 @@ Three entities are automatically created under a **HULiGENNEM** device:
 | `sensor.huligennem_next_live_start` | Sensor (timestamp) | Scheduled start of the next/current live show |
 | `sensor.huligennem_next_live_end` | Sensor (timestamp) | Scheduled end of the next/current live show |
 
-The binary sensor and timestamp sensors update every **60 seconds**. The timestamp sensors are populated from the API's `countdown` data, so `next_live_start` and `next_live_end` are available even when the show is not currently on air, letting you see when the next broadcast is scheduled.
+The binary sensor and timestamp sensors use event-driven polling: the next check is scheduled based on when a state change is expected.
+
+- **Off air, future start known** — polls 1 minute before `planned_starts_at` to catch the show going live
+- **On air, future end known** — polls 1 minute after `planned_ends_at` to catch the show ending
+- **No schedule available** — falls back to polling every 24 hours (minimum once a day)
+
+The timestamp sensors are populated from the API's `countdown` data, so `next_live_start` and `next_live_end` are available even when the show is not currently on air, letting you see when the next broadcast is scheduled.
 
 ### Automation Examples
 
