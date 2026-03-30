@@ -27,7 +27,7 @@ async def test_async_setup_entry():
     with (
         patch("custom_components.huligennem.async_get_clientsession"),
         patch("custom_components.huligennem.HuligennemAPI") as mock_api_class,
-        patch("custom_components.huligennem.DataUpdateCoordinator") as mock_coord_class,
+        patch("custom_components.huligennem.HuligennemLiveCoordinator") as mock_coord_class,
         patch(
             "custom_components.huligennem.async_register_services",
             new_callable=AsyncMock,
@@ -84,7 +84,7 @@ async def test_async_setup_entry_live_failure_continues():
     with (
         patch("custom_components.huligennem.async_get_clientsession"),
         patch("custom_components.huligennem.HuligennemAPI") as mock_api_class,
-        patch("custom_components.huligennem.DataUpdateCoordinator") as mock_coord_class,
+        patch("custom_components.huligennem.HuligennemLiveCoordinator") as mock_coord_class,
         patch("custom_components.huligennem.async_register_services", new_callable=AsyncMock),
     ):
         mock_api = AsyncMock()

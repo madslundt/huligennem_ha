@@ -8,17 +8,16 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .api import HuligennemAPI, HuligennemApiError
 from .const import DOMAIN as DOMAIN
+from .coordinator import HuligennemLiveCoordinator
 from .services import async_register_services, unregister_services
 
 _LOGGER = logging.getLogger(__name__)
@@ -31,7 +30,7 @@ class HuligennemRuntimeData:
     """Runtime data stored in the config entry."""
 
     api: HuligennemAPI
-    coordinator: DataUpdateCoordinator
+    coordinator: HuligennemLiveCoordinator
 
 
 type HuligennemConfigEntry = ConfigEntry[HuligennemRuntimeData]
@@ -55,14 +54,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HuligennemConfigEntry) -
     except HuligennemApiError as err:
         raise ConfigEntryNotReady(f"Failed to connect to HULiGENNEM: {err}") from err
 
-    coordinator = DataUpdateCoordinator(
-        hass,
-        _LOGGER,
-        config_entry=entry,
-        name=DOMAIN,
-        update_method=api.async_get_live_status,
-        update_interval=timedelta(seconds=60),
-    )
+    coordinator = HuligennemLiveCoordinator(hass, api, entry)
     try:
         await coordinator.async_config_entry_first_refresh()
     except ConfigEntryNotReady:
