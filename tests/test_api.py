@@ -341,6 +341,7 @@ class TestAsyncGetLiveStatus:
 
         # Manually expire the cache
         import time
+
         api._live_status_cache_time = time.monotonic() - LIVE_STATUS_CACHE_TTL - 1
 
         await api.async_get_live_status()

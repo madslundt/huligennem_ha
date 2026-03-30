@@ -13,6 +13,7 @@ HULiGENNEM is a Danish public-service children's and youth audio platform with 6
 - **Live Radio** — Listen to the live HULiGENNEM radio stream (HLS)
 - **Direct Playback** — Episodes play as direct MP3 on any media player entity
 - **Play statistics** — Every play is routed through HULiGENNEM's streaming infrastructure, so it counts in their official listener statistics
+- **Live Status Sensors** — `binary_sensor` for on-air state and `sensor` entities for next scheduled start/end times, enabling native HA automations
 - **Services** — Search series, get episodes, and check live status via HA services
 - **Automations** — Play specific episodes or live radio on any speaker via automations
 
@@ -165,9 +166,56 @@ action: huligennem.get_live
 response_variable: live
 ```
 
+### Live Status Entities
+
+Three entities are automatically created under a **HULiGENNEM** device:
+
+| Entity | Type | Description |
+|--------|------|-------------|
+| `binary_sensor.huligennem_on_air` | Binary sensor | `on` when broadcasting live, `off` otherwise |
+| `sensor.huligennem_next_live_start` | Sensor (timestamp) | Scheduled start of the next/current live show |
+| `sensor.huligennem_next_live_end` | Sensor (timestamp) | Scheduled end of the next/current live show |
+
+The binary sensor and timestamp sensors update every **60 seconds**. The timestamp sensors are populated from the API's `countdown` data, so `next_live_start` and `next_live_end` are available even when the show is not currently on air, letting you see when the next broadcast is scheduled.
+
 ### Automation Examples
 
 > Every play triggered via automation (or any other method) routes through HULiGENNEM's streaming infrastructure and counts in their official listener statistics — so playing from Home Assistant directly supports the platform.
+
+#### Auto-start live radio when the show goes live
+
+```yaml
+automation:
+  - alias: "Start HULiGENNEM when live begins"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.huligennem_on_air
+        from: "off"
+        to: "on"
+    action:
+      - action: media_player.play_media
+        target:
+          entity_id: media_player.living_room
+        data:
+          media_content_type: application/x-mpegURL
+          media_content_id: media-source://huligennem/live
+```
+
+#### Notify before the live show starts
+
+```yaml
+automation:
+  - alias: "Notify 5 minutes before HULiGENNEM live"
+    trigger:
+      - platform: template
+        value_template: >
+          {{ (as_timestamp(states('sensor.huligennem_next_live_start')) - as_timestamp(now())) | int < 300
+             and states('binary_sensor.huligennem_on_air') == 'off' }}
+    action:
+      - action: notify.mobile_app_my_phone
+        data:
+          message: "HULiGENNEM goes live in 5 minutes!"
+```
 
 #### Play a morning podcast for the kids
 
@@ -189,26 +237,22 @@ automation:
           media_content_id: media-source://huligennem/episode/729/serie/48
 ```
 
-#### Play live radio when it's on-air
+#### Play live radio when it's on-air (sensor-based)
 
 ```yaml
 automation:
   - alias: "HULiGENNEM live radio"
     trigger:
-      - platform: time
-        at: "14:30:00"
+      - platform: state
+        entity_id: binary_sensor.huligennem_on_air
+        to: "on"
     action:
-      - action: huligennem.get_live
-        response_variable: live_info
-      - condition: template
-        value_template: "{{ live_info.available }}"
       - action: media_player.play_media
         target:
           entity_id: media_player.living_room
         data:
           media_content_type: application/x-mpegURL
           media_content_id: media-source://huligennem/live
-
 ```
 
 #### Search and play a random episode from a series

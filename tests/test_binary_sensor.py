@@ -14,7 +14,11 @@ from custom_components.huligennem.binary_sensor import HuligennemOnAirBinarySens
 def coordinator():
     """Create a mock coordinator."""
     coord = MagicMock()
-    coord.data = {"on_air": True, "title": "Live Show", "stream_url": "https://example.com/live.m3u8"}
+    coord.data = {
+        "on_air": True,
+        "title": "Live Show",
+        "stream_url": "https://example.com/live.m3u8",
+    }
     return coord
 
 

@@ -39,10 +39,12 @@ async def async_setup_entry(
 ) -> None:
     """Set up HULiGENNEM sensors from a config entry."""
     coordinator = entry.runtime_data.coordinator
-    async_add_entities([
-        HuligennemTimestampSensor(coordinator, entry, description)
-        for description in _SENSOR_DESCRIPTIONS
-    ])
+    async_add_entities(
+        [
+            HuligennemTimestampSensor(coordinator, entry, description)
+            for description in _SENSOR_DESCRIPTIONS
+        ]
+    )
 
 
 class HuligennemTimestampSensor(CoordinatorEntity, SensorEntity):
