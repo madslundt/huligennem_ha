@@ -3,9 +3,10 @@
 Rather than a fixed interval, the next refresh is scheduled based on when
 a state change is expected:
 
-- Off air, future start known  → poll 1 min before planned start (max 24 h)
-- On air, future end known     → poll 1 min after planned end (max 24 h)
-- Anything else                → poll every 24 h (minimum once a day)
+- Off air, future start known        → poll 1 min before planned start (max 24 h)
+- On air, future end known           → poll 1 min after planned end (max 24 h)
+- Off air, start in the past/unknown → poll every 1 h (stale/missing schedule)
+- Anything else                      → poll every 24 h (minimum once a day)
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ _LOGGER = logging.getLogger(__name__)
 _PRE_START_BUFFER = timedelta(minutes=1)
 _POST_END_BUFFER = timedelta(minutes=1)
 _POLL_FALLBACK = timedelta(hours=24)
+_POLL_NO_SCHEDULE = timedelta(hours=1)
 _MAX_WAIT = timedelta(hours=24)
 
 
@@ -54,7 +56,8 @@ def _next_interval(data: dict[str, Any] | None) -> timedelta:
             if wait.total_seconds() > 0:
                 return min(wait, _MAX_WAIT)
 
-    return _POLL_FALLBACK
+    # Start is in the past or not scheduled yet — poll hourly to pick up new schedule
+    return _POLL_NO_SCHEDULE
 
 
 class HuligennemLiveCoordinator(DataUpdateCoordinator[dict[str, Any]]):

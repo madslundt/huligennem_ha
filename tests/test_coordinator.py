@@ -8,6 +8,7 @@ from unittest.mock import patch
 from custom_components.huligennem.coordinator import (
     _MAX_WAIT,
     _POLL_FALLBACK,
+    _POLL_NO_SCHEDULE,
     _POST_END_BUFFER,
     _PRE_START_BUFFER,
     _next_interval,
@@ -21,9 +22,9 @@ class TestNextInterval:
         """None data returns the 24-hour fallback."""
         assert _next_interval(None) == _POLL_FALLBACK
 
-    def test_off_air_no_schedule_returns_fallback(self):
-        """Off-air with no planned start returns the 24-hour fallback."""
-        assert _next_interval({"on_air": False, "planned_starts_at": None}) == _POLL_FALLBACK
+    def test_off_air_no_schedule_returns_hourly(self):
+        """Off-air with no planned start polls every hour to pick up new schedule."""
+        assert _next_interval({"on_air": False, "planned_starts_at": None}) == _POLL_NO_SCHEDULE
 
     def test_off_air_future_start_polls_one_minute_before(self):
         """Off air with future start → waits until 1 min before planned start."""
@@ -50,8 +51,8 @@ class TestNextInterval:
 
         assert interval == _MAX_WAIT
 
-    def test_off_air_start_already_passed_returns_fallback(self):
-        """Start time passed but not on air → 24-hour fallback."""
+    def test_off_air_start_already_passed_returns_hourly(self):
+        """Start time passed but not on air → poll hourly to pick up new schedule."""
         data = {"on_air": False, "planned_starts_at": "2000-01-01T10:00:00.000000Z"}
 
         with patch("custom_components.huligennem.coordinator.utcnow") as mock_now:
@@ -60,7 +61,7 @@ class TestNextInterval:
             mock_now.return_value = parse_datetime("2000-01-01T10:30:00.000000Z")
             interval = _next_interval(data)
 
-        assert interval == _POLL_FALLBACK
+        assert interval == _POLL_NO_SCHEDULE
 
     def test_on_air_with_future_end_polls_one_minute_after(self):
         """On air with known end time → waits until 1 min after planned end."""
