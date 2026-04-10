@@ -329,6 +329,28 @@ class TestAsyncGetLiveStatus:
         assert status["planned_ends_at"] is None
 
     @pytest.mark.asyncio
+    async def test_status_on_air_without_on_air_sub_dict(self):
+        """Test on-air when onAir dict has no nested on_air key — falls back gracefully."""
+        session = MagicMock()
+        html = make_inertia_html({
+            "props": {
+                "onAir": {"id": 1, "title": "Show", "stream_url": "https://stream.example.com/live.m3u8"},
+                "liveShow": {"id": 1, "title": "Show", "stream_url": "https://stream.example.com/live.m3u8"},
+                "countdown": None,
+            }
+        })
+        resp = _mock_response(text=html)
+        session.get = MagicMock(return_value=_make_ctx(resp))
+
+        api = HuligennemAPI(session)
+        status = await api.async_get_live_status()
+
+        assert status["on_air"] is True
+        assert status["stream_url"] == "https://stream.example.com/live.m3u8"
+        assert status["planned_starts_at"] is None
+        assert status["planned_ends_at"] is None
+
+    @pytest.mark.asyncio
     async def test_status_cache_expires(self):
         """Test that cached status is refreshed after TTL expires."""
         session = MagicMock()

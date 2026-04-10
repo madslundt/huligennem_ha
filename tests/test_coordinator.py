@@ -76,8 +76,8 @@ class TestNextInterval:
         # 2 hours until end plus 1-minute post-buffer = 2 h 01 min
         assert interval == timedelta(hours=2) + _POST_END_BUFFER
 
-    def test_on_air_end_already_passed_returns_fallback(self):
-        """On air but end time already passed → 24-hour fallback."""
+    def test_on_air_end_already_passed_returns_hourly(self):
+        """On air but end time already passed → poll hourly to detect when show ends."""
         data = {"on_air": True, "planned_ends_at": "2000-01-01T10:00:00.000000Z"}
 
         with patch("custom_components.huligennem.coordinator.utcnow") as mock_now:
@@ -86,11 +86,11 @@ class TestNextInterval:
             mock_now.return_value = parse_datetime("2000-01-01T11:00:00.000000Z")
             interval = _next_interval(data)
 
-        assert interval == _POLL_FALLBACK
+        assert interval == _POLL_NO_SCHEDULE
 
-    def test_on_air_no_end_time_returns_fallback(self):
-        """On air with no end time → 24-hour fallback."""
-        assert _next_interval({"on_air": True, "planned_ends_at": None}) == _POLL_FALLBACK
+    def test_on_air_no_end_time_returns_hourly(self):
+        """On air with no end time → poll hourly to detect when show ends."""
+        assert _next_interval({"on_air": True, "planned_ends_at": None}) == _POLL_NO_SCHEDULE
 
     def test_on_air_end_capped_at_max_wait(self):
         """End time 30 hours away → interval capped at 24 h."""

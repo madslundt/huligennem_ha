@@ -213,8 +213,7 @@ class HuligennemAPI:
         Always returns a dict (never ``None``). Includes countdown data even
         when not on-air so sensors can show the next scheduled broadcast.
         Concurrent calls are serialized via ``_live_lock``. Cached for
-        ``LIVE_STATUS_CACHE_TTL`` seconds (slightly under the 60-second
-        coordinator poll interval).
+        ``LIVE_STATUS_CACHE_TTL`` seconds.
 
         Returns:
             Dict with ``on_air`` (bool), ``title``, ``stream_url``,
@@ -245,18 +244,22 @@ class HuligennemAPI:
             countdown = props.get("countdown")
 
             on_air = bool(live_show and live_show.get("stream_url"))
+
+            # When on-air, planned times live in onAir.on_air; when off-air, in countdown.
+            on_air_schedule = on_air_raw.get("on_air") if isinstance(on_air_raw, dict) else None
+
             result: dict[str, Any] = {
                 "on_air": on_air,
                 "title": live_show.get("title", "HULiGENNEM Live")
                 if on_air and live_show
                 else None,
                 "stream_url": live_show.get("stream_url") if on_air and live_show else None,
-                "planned_starts_at": countdown.get("planned_starts_at")
-                if isinstance(countdown, dict)
-                else None,
-                "planned_ends_at": countdown.get("planned_ends_at")
-                if isinstance(countdown, dict)
-                else None,
+                "planned_starts_at": on_air_schedule.get("planned_starts_at")
+                if on_air and isinstance(on_air_schedule, dict)
+                else (countdown.get("planned_starts_at") if isinstance(countdown, dict) else None),
+                "planned_ends_at": on_air_schedule.get("planned_ends_at")
+                if on_air and isinstance(on_air_schedule, dict)
+                else (countdown.get("planned_ends_at") if isinstance(countdown, dict) else None),
             }
             self._live_status_cache = result
             self._live_status_cache_time = time.monotonic()

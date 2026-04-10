@@ -197,6 +197,16 @@ class TestResolveMedia:
             await media_source.async_resolve_media(_item("live"))
 
     @pytest.mark.asyncio
+    async def test_resolve_live_api_error(self, media_source: HuligennemMediaSource, api_mock):
+        """Test that API errors during live resolution raise Unresolvable."""
+        from custom_components.huligennem.api import HuligennemApiError
+
+        api_mock.async_get_live = AsyncMock(side_effect=HuligennemApiError("timeout"))
+
+        with pytest.raises(Unresolvable, match="Failed to fetch live stream"):
+            await media_source.async_resolve_media(_item("live"))
+
+    @pytest.mark.asyncio
     async def test_resolve_no_identifier(self, media_source: HuligennemMediaSource):
         """Test resolving with no identifier raises error."""
         with pytest.raises(Unresolvable, match="No identifier"):
@@ -219,3 +229,13 @@ class TestResolveMedia:
         """Test resolving episode with non-numeric ID raises error."""
         with pytest.raises(Unresolvable, match="Invalid episode"):
             await media_source.async_resolve_media(_item("episode/abc/serie/xyz"))
+
+    @pytest.mark.asyncio
+    async def test_resolve_episode_api_error(self, media_source: HuligennemMediaSource, api_mock):
+        """Test that playlist API errors during episode resolution raise Unresolvable."""
+        from custom_components.huligennem.api import HuligennemApiError
+
+        api_mock.async_get_playlist = AsyncMock(side_effect=HuligennemApiError("timeout"))
+
+        with pytest.raises(Unresolvable, match="Failed to fetch episode"):
+            await media_source.async_resolve_media(_item("episode/100/serie/1"))

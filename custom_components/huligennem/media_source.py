@@ -25,6 +25,7 @@ from homeassistant.components.media_source import (
 from homeassistant.components.media_source.error import MediaSourceError
 from homeassistant.core import HomeAssistant
 
+from .api import HuligennemApiError
 from .const import DOMAIN
 from .services import get_api
 
@@ -77,7 +78,10 @@ class HuligennemMediaSource(MediaSource):
     async def _resolve_live(self) -> PlayMedia:
         """Resolve the live stream to an HLS URL."""
         api = get_api(self.hass)
-        live = await api.async_get_live()
+        try:
+            live = await api.async_get_live()
+        except HuligennemApiError as err:
+            raise Unresolvable(f"Failed to fetch live stream: {err}") from err
         if not live:
             raise Unresolvable("Live stream is not currently available")
         return PlayMedia(live["stream_url"], "application/x-mpegURL")
@@ -108,7 +112,10 @@ class HuligennemMediaSource(MediaSource):
             return PlayMedia(url, "audio/mpeg")
 
         # Fall back to the playlist API (backup CDN URL).
-        playlist = await api.async_get_playlist(serie_id)
+        try:
+            playlist = await api.async_get_playlist(serie_id)
+        except HuligennemApiError as err:
+            raise Unresolvable(f"Failed to fetch episode: {err}") from err
         data = playlist.get("data", {})
 
         # Episodic series: episodes at top level

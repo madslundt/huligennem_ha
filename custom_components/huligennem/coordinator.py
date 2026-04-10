@@ -6,6 +6,7 @@ a state change is expected:
 - Off air, future start known        → poll 1 min before planned start (max 24 h)
 - On air, future end known           → poll 1 min after planned end (max 24 h)
 - Off air, start in the past/unknown → poll every 1 h (stale/missing schedule)
+- On air, end in the past/unknown    → poll every 1 h (overrun or no schedule)
 - Anything else                      → poll every 24 h (minimum once a day)
 """
 
@@ -26,9 +27,9 @@ _LOGGER = logging.getLogger(__name__)
 
 _PRE_START_BUFFER = timedelta(minutes=1)
 _POST_END_BUFFER = timedelta(minutes=1)
-_POLL_FALLBACK = timedelta(hours=24)
-_POLL_NO_SCHEDULE = timedelta(hours=1)
-_MAX_WAIT = timedelta(hours=24)
+_POLL_FALLBACK = timedelta(hours=24)    # used when data is None (initial/unknown state)
+_POLL_NO_SCHEDULE = timedelta(hours=1)  # used when schedule is stale or unknown
+_MAX_WAIT = timedelta(hours=24)         # cap on calculated waits (independent of _POLL_FALLBACK)
 
 
 def _next_interval(data: dict[str, Any] | None) -> timedelta:
@@ -46,7 +47,8 @@ def _next_interval(data: dict[str, Any] | None) -> timedelta:
                 wait = (planned_ends + _POST_END_BUFFER) - now
                 if wait.total_seconds() > 0:
                     return min(wait, _MAX_WAIT)
-        return _POLL_FALLBACK
+        # End time unknown or already passed — poll hourly to detect when show ends
+        return _POLL_NO_SCHEDULE
 
     planned_starts_raw = data.get("planned_starts_at")
     if planned_starts_raw:
