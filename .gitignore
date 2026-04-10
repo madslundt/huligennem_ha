@@ -10,3 +10,5 @@ build/
 .venv/
 venv/
 .env
+docs/captures/*
+!docs/captures/.gitkeep
