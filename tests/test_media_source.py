@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant.components.media_source import (
@@ -51,10 +51,11 @@ def media_source(api_mock):
     return source
 
 
-def _item(identifier: str | None = None) -> MediaSourceItem:
+def _item(identifier: str | None = None, target_media_player: str | None = None) -> MediaSourceItem:
     """Create a MediaSourceItem."""
     item = MagicMock(spec=MediaSourceItem)
     item.identifier = identifier
+    item.target_media_player = target_media_player
     return item
 
 
@@ -239,3 +240,68 @@ class TestResolveMedia:
 
         with pytest.raises(Unresolvable, match="Failed to fetch episode"):
             await media_source.async_resolve_media(_item("episode/100/serie/1"))
+
+
+class TestSonosSupport:
+    """Tests for Sonos-specific live stream handling."""
+
+    @pytest.mark.asyncio
+    async def test_resolve_live_sonos_uses_hls_radio_scheme(
+        self, media_source: HuligennemMediaSource, api_mock
+    ):
+        """Test that Sonos target receives hls-radio:// URL and music content type."""
+        mock_entry = MagicMock()
+        mock_entry.platform = "sonos"
+
+        with patch(
+            "custom_components.huligennem.media_source.er.async_get"
+        ) as mock_er:
+            mock_er.return_value.async_get.return_value = mock_entry
+            result = await media_source.async_resolve_media(
+                _item("live", target_media_player="media_player.sonos_living_room")
+            )
+
+        assert result.url == "hls-radio://stream.example.com/live.m3u8"
+        assert result.mime_type == "music"
+
+    @pytest.mark.asyncio
+    async def test_resolve_live_non_sonos_uses_https(
+        self, media_source: HuligennemMediaSource
+    ):
+        """Test that non-Sonos target receives standard https:// URL."""
+        mock_entry = MagicMock()
+        mock_entry.platform = "cast"
+
+        with patch(
+            "custom_components.huligennem.media_source.er.async_get"
+        ) as mock_er:
+            mock_er.return_value.async_get.return_value = mock_entry
+            result = await media_source.async_resolve_media(
+                _item("live", target_media_player="media_player.chromecast")
+            )
+
+        assert result.url == "https://stream.example.com/live.m3u8"
+        assert result.mime_type == "application/x-mpegURL"
+
+    @pytest.mark.asyncio
+    async def test_resolve_live_no_target_uses_https(
+        self, media_source: HuligennemMediaSource
+    ):
+        """Test that no target player receives standard https:// URL."""
+        result = await media_source.async_resolve_media(_item("live"))
+
+        assert result.url == "https://stream.example.com/live.m3u8"
+        assert result.mime_type == "application/x-mpegURL"
+
+    @pytest.mark.asyncio
+    async def test_browse_root_live_uses_channel_class(
+        self, media_source: HuligennemMediaSource
+    ):
+        """Test that Live Radio browse item uses CHANNEL media class and audio/mpeg."""
+        from homeassistant.components.media_player import MediaClass
+
+        result = await media_source.async_browse_media(_item(None))
+        live_item = result.children[0]
+
+        assert live_item.media_class == MediaClass.CHANNEL
+        assert live_item.media_content_type == "audio/mpeg"

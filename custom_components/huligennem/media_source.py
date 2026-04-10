@@ -24,6 +24,7 @@ from homeassistant.components.media_source import (
 )
 from homeassistant.components.media_source.error import MediaSourceError
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 
 from .api import HuligennemApiError
 from .const import DOMAIN
@@ -68,15 +69,21 @@ class HuligennemMediaSource(MediaSource):
             raise Unresolvable("No identifier provided")
 
         if identifier == "live":
-            return await self._resolve_live()
+            return await self._resolve_live(item.target_media_player)
 
         if identifier.startswith("episode/"):
             return await self._resolve_episode(identifier)
 
         raise Unresolvable(f"Unknown media identifier: {identifier}")
 
-    async def _resolve_live(self) -> PlayMedia:
-        """Resolve the live stream to an HLS URL."""
+    async def _resolve_live(self, target_media_player: str | None = None) -> PlayMedia:
+        """Resolve the live stream to a playable URL.
+
+        Returns an ``hls-radio://`` URL with content type ``music`` when the
+        target is a Sonos device, which requires this scheme to play HLS
+        streams via its built-in live player. All other players receive the
+        standard ``https://`` URL with ``application/x-mpegURL``.
+        """
         api = get_api(self.hass)
         try:
             live = await api.async_get_live()
@@ -84,7 +91,15 @@ class HuligennemMediaSource(MediaSource):
             raise Unresolvable(f"Failed to fetch live stream: {err}") from err
         if not live:
             raise Unresolvable("Live stream is not currently available")
-        return PlayMedia(live["stream_url"], "application/x-mpegURL")
+
+        stream_url = live["stream_url"]
+
+        if self._is_sonos(target_media_player):
+            stream_url = stream_url.replace("https://", "hls-radio://", 1)
+            stream_url = stream_url.replace("http://", "hls-radio://", 1)
+            return PlayMedia(stream_url, "music")
+
+        return PlayMedia(stream_url, "application/x-mpegURL")
 
     async def _resolve_episode(self, identifier: str) -> PlayMedia:
         """Resolve an episode identifier to its direct MP3 URL.
@@ -137,6 +152,14 @@ class HuligennemMediaSource(MediaSource):
 
         raise Unresolvable(f"Episode {episode_id} not found in series {serie_id}")
 
+    def _is_sonos(self, entity_id: str | None) -> bool:
+        """Return True if the target media player is a Sonos device."""
+        if not entity_id:
+            return False
+        entity_reg = er.async_get(self.hass)
+        entry = entity_reg.async_get(entity_id)
+        return entry is not None and entry.platform == "sonos"
+
     async def async_browse_media(self, item: MediaSourceItem) -> BrowseMediaSource:
         """Browse the media hierarchy.
 
@@ -167,8 +190,8 @@ class HuligennemMediaSource(MediaSource):
             BrowseMediaSource(
                 domain=DOMAIN,
                 identifier="live",
-                media_class=MediaClass.MUSIC,
-                media_content_type="application/x-mpegURL",
+                media_class=MediaClass.CHANNEL,
+                media_content_type="audio/mpeg",
                 title="Live Radio",
                 can_play=True,
                 can_expand=False,
