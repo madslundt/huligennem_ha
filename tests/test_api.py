@@ -332,13 +332,23 @@ class TestAsyncGetLiveStatus:
     async def test_status_on_air_without_on_air_sub_dict(self):
         """Test on-air when onAir dict has no nested on_air key — falls back gracefully."""
         session = MagicMock()
-        html = make_inertia_html({
-            "props": {
-                "onAir": {"id": 1, "title": "Show", "stream_url": "https://stream.example.com/live.m3u8"},
-                "liveShow": {"id": 1, "title": "Show", "stream_url": "https://stream.example.com/live.m3u8"},
-                "countdown": None,
+        html = make_inertia_html(
+            {
+                "props": {
+                    "onAir": {
+                        "id": 1,
+                        "title": "Show",
+                        "stream_url": "https://stream.example.com/live.m3u8",
+                    },
+                    "liveShow": {
+                        "id": 1,
+                        "title": "Show",
+                        "stream_url": "https://stream.example.com/live.m3u8",
+                    },
+                    "countdown": None,
+                }
             }
-        })
+        )
         resp = _mock_response(text=html)
         session.get = MagicMock(return_value=_make_ctx(resp))
 

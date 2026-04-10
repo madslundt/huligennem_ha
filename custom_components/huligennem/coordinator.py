@@ -27,9 +27,9 @@ _LOGGER = logging.getLogger(__name__)
 
 _PRE_START_BUFFER = timedelta(minutes=1)
 _POST_END_BUFFER = timedelta(minutes=1)
-_POLL_FALLBACK = timedelta(hours=24)    # used when data is None (initial/unknown state)
+_POLL_FALLBACK = timedelta(hours=24)  # used when data is None (initial/unknown state)
 _POLL_NO_SCHEDULE = timedelta(hours=1)  # used when schedule is stale or unknown
-_MAX_WAIT = timedelta(hours=24)         # cap on calculated waits (independent of _POLL_FALLBACK)
+_MAX_WAIT = timedelta(hours=24)  # cap on calculated waits (independent of _POLL_FALLBACK)
 
 
 def _next_interval(data: dict[str, Any] | None) -> timedelta:
